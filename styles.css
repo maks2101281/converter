@@ -159,59 +159,43 @@ header p {
 }
 
 .convert-controls {
-    display: flex;
-    gap: 15px;
+    display: none;
     margin-top: 15px;
 }
 
 .format-select {
-    background-color: white !important;
-    color: #333 !important;
-    border: 1px solid var(--border-color) !important;
-    border-radius: 8px !important;
-    padding: 12px 16px !important;
-    width: 100% !important;
-    font-size: 15px !important;
-    cursor: pointer !important;
-    appearance: none !important;
-    -webkit-appearance: none !important;
+    width: 100%;
+    padding: 12px 16px;
+    background: white;
+    color: #333;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 15px;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333333' d='M10.293 3.293L6 7.586 1.707 3.293A1 1 0 00.293 4.707l5 5a1 1 0 001.414 0l5-5a1 1 0 10-1.414-1.414z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 12px;
+    padding-right: 36px;
+    margin-bottom: 10px;
+}
+
+.format-select option {
+    background-color: var(--background-color);
+    color: white;
+    padding: 8px;
+}
+
+.format-select:hover {
+    border-color: var(--primary-color);
 }
 
 .format-select:focus {
     outline: none;
     border-color: var(--primary-color);
     box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
-}
-
-.format-select option:checked,
-.format-select option:selected,
-.format-select option[selected] {
-    background-color: var(--background-color) !important;
-    color: white !important;
-    font-weight: 500 !important;
-}
-
-.format-select option[value=""][disabled] {
-    color: #666 !important;
-}
-
-.format-select option {
-    background-color: var(--background-color) !important;
-    color: white !important;
-    padding: 12px !important;
-}
-
-.format-select:focus option:checked,
-.format-select option:checked {
-    opacity: 1 !important;
-}
-
-.format-select {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333333' d='M10.293 3.293L6 7.586 1.707 3.293A1 1 0 00.293 4.707l5 5a1 1 0 001.414 0l5-5a1 1 0 10-1.414-1.414z'/%3E%3C/svg%3E") !important;
-    background-repeat: no-repeat !important;
-    background-position: right 12px center !important;
-    background-size: 12px !important;
-    padding-right: 36px !important;
 }
 
 .convert-btn {
@@ -914,5 +898,6 @@ input[type="file"] {
     color: #333;
     border: 1px solid var(--border-color);
     border-radius: 8px;
-    font-size: 16px;
+    font-size: 15px;
+    margin-bottom: 10px;
 }
