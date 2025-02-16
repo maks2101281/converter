@@ -11,6 +11,7 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <!-- Добавляем красивый шрифт -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 </head>
 <body>
     <div class="container">
@@ -27,12 +28,10 @@
 
         <main>
             <div class="upload-container">
-                <div class="upload-area" id="dropZone">
-                    <input type="file" id="fileInput" multiple class="file-input" accept="image/*,video/*,audio/*">
-                    <div class="upload-message">
-                        <span class="desktop-text">Перетащите файлы сюда или нажмите для выбора</span>
-                        <span class="mobile-text">Нажмите чтобы выбрать файл</span>
-                    </div>
+                <div class="upload-area">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <p>Перетащите файлы сюда или нажмите для выбора</p>
+                    <p class="supported-formats">Поддерживаемые форматы: JPG, PNG, PDF, MP4, MP3 и другие</p>
                 </div>
                 
                 <div class="files-list" id="filesList"></div>
@@ -44,60 +43,38 @@
             </div>
 
             <div class="conversion-status" id="conversionStatus"></div>
+
+            <div class="format-select-container">
+                <select class="format-select">
+                    <!-- Форматы будут добавлены динамически -->
+                </select>
+            </div>
+
+            <div class="file-name-input">
+                <input type="text" placeholder="Введите имя файла" class="filename-field">
+            </div>
         </main>
 
         <footer>
             <p>© 2024 File Converter. Все права защищены.</p>
             <div class="features">
                 <div class="feature">
-                    <i class="material-icons">security</i>
+                    <i class="fas fa-shield-alt"></i>
                     <span>Безопасная конвертация</span>
                 </div>
                 <div class="feature">
-                    <i class="material-icons">speed</i>
+                    <i class="fas fa-bolt"></i>
                     <span>Быстрая обработка</span>
                 </div>
                 <div class="feature">
-                    <i class="material-icons">devices</i>
+                    <i class="fas fa-desktop"></i>
                     <span>Работает на всех устройствах</span>
                 </div>
             </div>
         </footer>
     </div>
 
-    <!-- Модальное окно настроек конвертации -->
-    <div class="modal" id="settingsModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Настройки конвертации</h2>
-                <button class="close-button" id="closeModal">×</button>
-            </div>
-            <div class="modal-body">
-                <div class="settings-group">
-                    <label for="formatTo">Конвертировать в:</label>
-                    <select id="formatTo"></select>
-                </div>
-                <div class="settings-group">
-                    <label for="quality">Качество:</label>
-                    <input type="range" id="quality" min="1" max="100" value="92">
-                    <span id="qualityValue">92%</span>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button id="startConversion" class="primary-button">Начать конвертацию</button>
-            </div>
-        </div>
-    </div>
 
-    <!-- Прогресс загрузки -->
-    <div class="global-progress" id="globalProgress">
-        <div class="progress-inner">
-            <div class="progress-bar">
-                <div class="progress-fill"></div>
-            </div>
-            <p class="progress-text">Обработано: <span id="progressPercent">0</span>%</p>
-        </div>
-    </div>
 
     <!-- Toast уведомления -->
     <div id="toastContainer" class="toast-container"></div>
