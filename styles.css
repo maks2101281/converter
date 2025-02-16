@@ -1,14 +1,19 @@
 :root {
     --primary-color: #2196F3;
     --primary-dark: #1976D2;
-    --secondary-color: #4A6572;
-    --background-color: #1E1E1E;
-    --card-background: #2B2B2B;
-    --text-color: #FFFFFF;
+    --secondary-color: #4CAF50;
+    --background-color: #121212;
+    --card-background: #1e1e1e;
+    --text-color: #ffffff;
     --border-radius: 8px;
     --success-color: #4CAF50;
-    --error-color: #f44336;
+    --error-color: #ff5252;
     --warning-color: #ff9800;
+    --bg-color: #f5f5f5;
+    --card-bg: #fff;
+    --border-color: #333333;
+    --shadow-color: rgba(0, 0, 0, 0.3);
+    --hover-color: #2a2a2a;
 }
 
 * {
@@ -20,9 +25,9 @@
 }
 
 body {
-    font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu;
-    background: #f5f5f5;
-    color: #333;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background-color: var(--background-color);
+    color: var(--text-color);
     line-height: 1.6;
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
@@ -31,12 +36,22 @@ body {
 .container {
     max-width: 800px;
     margin: 0 auto;
-    padding: 20px;
+    padding: 40px 20px;
 }
 
 h1 {
+    color: var(--primary-color);
     text-align: center;
-    margin-bottom: 20px;
+    font-size: 2.5em;
+    margin-bottom: 10px;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.subtitle {
+    text-align: center;
+    color: var(--text-color);
+    opacity: 0.8;
+    margin-bottom: 30px;
 }
 
 header {
@@ -59,18 +74,9 @@ header p {
 }
 
 .supported-formats {
-    display: flex;
-    justify-content: center;
-    gap: 1rem;
-    flex-wrap: wrap;
-}
-
-.format-badge {
-    background-color: rgba(33, 150, 243, 0.1);
-    color: var(--primary-color);
-    padding: 0.5rem 1rem;
-    border-radius: 20px;
-    font-size: 0.9rem;
+    font-size: 0.9em;
+    color: var(--text-color);
+    opacity: 0.7;
 }
 
 .upload-container {
@@ -82,17 +88,32 @@ header p {
 }
 
 .upload-area {
-    border: 2px dashed #ccc;
-    border-radius: 8px;
-    padding: 40px 20px;
+    background: var(--card-background);
+    border: 2px dashed var(--primary-color);
+    border-radius: 16px;
+    padding: 40px;
     text-align: center;
     cursor: pointer;
-    margin-bottom: 20px;
-    background: #fff;
+    margin-bottom: 30px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px var(--shadow-color);
 }
 
 .upload-area:hover {
-    border-color: #2196F3;
+    transform: translateY(-2px);
+    border-color: var(--primary-dark);
+    box-shadow: 0 6px 12px var(--shadow-color);
+}
+
+.upload-icon {
+    font-size: 64px !important;
+    color: var(--primary-color);
+    margin-bottom: 20px;
+}
+
+.upload-text {
+    font-size: 1.2em;
+    margin-bottom: 15px;
 }
 
 .file-input {
@@ -104,217 +125,164 @@ header p {
     z-index: 2;
 }
 
-.upload-area i {
-    font-size: 64px;
-    color: var(--primary-color);
-    margin-bottom: 1rem;
-}
-
-.upload-hint {
-    color: #999;
-    font-size: 0.9rem;
-    margin-top: 1rem;
-}
-
-.custom-file-input {
-    display: inline-block;
-    background-color: var(--primary-color);
-    color: white;
-    padding: 0.8rem 1.5rem;
-    border-radius: var(--border-radius);
-    cursor: pointer;
-    font-size: 1rem;
-    transition: all 0.3s ease;
-    margin: 1rem 0;
-}
-
-.custom-file-input:hover {
-    background-color: var(--primary-dark);
-}
-
-.files-list {
-    margin-top: 2rem;
-}
-
 .file-item {
-    background: #fff;
-    border-radius: 8px;
-    padding: 15px;
-    margin-bottom: 10px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    background-color: var(--background-color) !important;
+    color: var(--text-color) !important;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 8px var(--shadow-color);
 }
 
-.file-icon {
-    margin-right: 1rem;
-    color: var(--primary-color);
+.file-item:hover {
+    transform: translateX(2px);
+    box-shadow: 0 4px 12px var(--shadow-color);
 }
 
 .file-info {
-    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
 }
 
 .file-name {
+    color: var(--text-color);
+    font-size: 15px;
     font-weight: 500;
 }
 
 .file-size {
-    color: #666;
-    font-size: 0.9em;
+    color: var(--text-color);
+    opacity: 0.7;
+    font-size: 14px;
 }
 
-.file-actions {
+.convert-controls {
     display: flex;
-    gap: 0.5rem;
+    gap: 15px;
+    margin-top: 15px;
 }
 
-.batch-actions {
-    display: flex;
-    justify-content: center;
-    gap: 1rem;
-    margin-bottom: 2rem;
+.format-select {
+    background-color: white !important;
+    color: #333 !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 8px !important;
+    padding: 12px 16px !important;
+    width: 100% !important;
+    font-size: 15px !important;
+    cursor: pointer !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
 }
 
-.primary-button, .secondary-button {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.8rem 1.5rem;
-    border-radius: var(--border-radius);
-    border: none;
-    cursor: pointer;
-    font-size: 1rem;
-    transition: all 0.3s ease;
+.format-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
 }
 
-.primary-button {
-    background-color: var(--primary-color);
+.format-select option:checked,
+.format-select option:selected,
+.format-select option[selected] {
+    background-color: var(--background-color) !important;
+    color: white !important;
+    font-weight: 500 !important;
+}
+
+.format-select option[value=""][disabled] {
+    color: #666 !important;
+}
+
+.format-select option {
+    background-color: var(--background-color) !important;
+    color: white !important;
+    padding: 12px !important;
+}
+
+.format-select:focus option:checked,
+.format-select option:checked {
+    opacity: 1 !important;
+}
+
+.format-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333333' d='M10.293 3.293L6 7.586 1.707 3.293A1 1 0 00.293 4.707l5 5a1 1 0 001.414 0l5-5a1 1 0 10-1.414-1.414z'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 12px center !important;
+    background-size: 12px !important;
+    padding-right: 36px !important;
+}
+
+.convert-btn {
+    padding: 12px 24px;
+    background: var(--primary-color);
     color: white;
-}
-
-.primary-button:hover {
-    background-color: var(--primary-dark);
-}
-
-.secondary-button {
-    background-color: transparent;
-    color: var(--text-color);
-    border: 1px solid var(--secondary-color);
-}
-
-.secondary-button:hover {
-    background-color: rgba(74, 101, 114, 0.1);
-}
-
-.modal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    z-index: 1000;
-}
-
-.modal-content {
-    position: relative;
-    background-color: var(--card-background);
-    margin: 10% auto;
-    padding: 2rem;
-    border-radius: var(--border-radius);
-    max-width: 500px;
-    width: 90%;
-}
-
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
-}
-
-.close-button {
-    background: none;
     border: none;
-    color: var(--text-color);
-    font-size: 1.5rem;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 500;
     cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 160px;
 }
 
-.settings-group {
-    margin-bottom: 1.5rem;
+.convert-btn:hover:not(:disabled) {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
 }
 
-.settings-group label {
-    display: block;
-    margin-bottom: 0.5rem;
-    color: #999;
+.convert-btn:disabled {
+    background: #cccccc;
+    cursor: not-allowed;
+    opacity: 0.7;
 }
 
-.global-progress {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
+.progress {
     width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.8);
-    z-index: 2000;
-}
-
-.progress-inner {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 80%;
-    max-width: 400px;
-    text-align: center;
+    height: 4px;
+    background: var(--border-color);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 10px;
 }
 
 .progress-bar {
-    background-color: var(--background-color);
-    border-radius: var(--border-radius);
-    height: 8px;
-    overflow: hidden;
-    margin-bottom: 1rem;
+    width: 0;
+    height: 100%;
+    background: var(--primary-color);
+    transition: width 0.3s ease;
 }
 
-.progress-fill {
-    background-color: var(--primary-color);
-    height: 100%;
-    width: 0%;
-    transition: width 0.3s ease;
+.progress-text {
+    font-size: 14px;
+    color: var(--text-color);
+    margin-top: 5px;
+    text-align: center;
 }
 
 .toast-container {
     position: fixed;
     bottom: 20px;
     right: 20px;
-    z-index: 3000;
+    z-index: 1000;
 }
 
 .toast {
-    padding: 1rem 1.5rem;
-    border-radius: var(--border-radius);
+    padding: 12px 24px;
+    border-radius: 8px;
+    margin-bottom: 10px;
     color: white;
-    margin-bottom: 0.5rem;
-    animation: slideIn 0.3s ease-out;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+    box-shadow: 0 4px 12px var(--shadow-color);
+    animation: slideIn 0.3s ease;
 }
 
-.toast-success {
-    background-color: var(--success-color);
+.toast.success {
+    background: var(--success-color);
 }
 
-.toast-error {
-    background-color: var(--error-color);
-}
-
-.toast-warning {
-    background-color: var(--warning-color);
+.toast.error {
+    background: var(--error-color);
 }
 
 @keyframes slideIn {
@@ -329,42 +297,44 @@ header p {
 }
 
 footer {
-    margin-top: 4rem;
-    text-align: center;
-    padding: 2rem 0;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: 40px !important;
+    padding: 20px !important;
+    text-align: center !important;
 }
 
 .features {
-    display: flex;
-    justify-content: center;
-    gap: 2rem;
-    margin-top: 1.5rem;
+    background-color: var(--background-color) !important;
+    padding: 20px !important;
+    display: flex !important;
+    justify-content: center !important;
+    gap: 30px !important;
+    margin-top: 20px !important;
 }
 
 .feature {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: #999;
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
 }
 
 .feature i {
-    color: var(--primary-color);
+    color: #2196F3 !important; /* синий цвет для иконок */
+    font-size: 20px !important;
+}
+
+.feature span {
+    color: #999 !important; /* серый цвет для текста */
+    font-size: 14px !important;
 }
 
 /* Мобильные стили */
 @media (max-width: 768px) {
     .container {
-        padding: 10px;
+        padding: 20px;
     }
 
-    .desktop-text {
-        display: none;
-    }
-
-    .mobile-text {
-        display: block;
+    .upload-area {
+        padding: 30px 20px;
     }
 
     .convert-controls {
@@ -374,20 +344,10 @@ footer {
     .format-select,
     .convert-btn {
         width: 100%;
-        height: 44px;
     }
 
     .file-item {
         padding: 12px;
-    }
-
-    .format-select {
-        flex: 1;
-        max-width: 120px;
-    }
-
-    .convert-btn {
-        flex: 2;
     }
 
     .progress-bar {
@@ -421,6 +381,12 @@ footer {
 
     .format-badge {
         font-size: 0.8rem;
+    }
+
+    .features {
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: 15px !important;
     }
 }
 
@@ -506,6 +472,14 @@ input[type="file"] {
         color: #fff;
         border-color: #444;
     }
+
+    :root {
+        --bg-color: #121212;
+        --text-color: #fff;
+        --card-bg: #1e1e1e;
+        --border-color: #333;
+        --shadow-color: rgba(0, 0, 0, 0.3);
+    }
 }
 
 /* Добавляем поддержку безопасной зоны для iPhone X и новее */
@@ -522,26 +496,6 @@ input[type="file"] {
     input, select, textarea {
         font-size: 16px !important;
     }
-}
-
-/* Исправляем стили для мобильных селектов */
-.format-select {
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-    background-color: #fff;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    padding: 10px;
-    padding-right: 30px;
-    font-size: 16px !important; /* Важно для iOS */
-    width: 100%;
-    max-width: 200px;
-    height: 44px; /* Минимальная высота для тач-интерфейсов */
-    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23000000%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.4-12.8z%22%2F%3E%3C%2Fsvg%3E");
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    background-size: 12px;
 }
 
 /* Стили для iOS Safari */
@@ -697,11 +651,8 @@ input[type="file"] {
 
 /* Обновляем стили для лучшей видимости элементов */
 .file-item {
-    background: #fff;
-    border-radius: 8px;
-    padding: 15px;
-    margin: 10px 0;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    background: white;
+    color: #333;
 }
 
 .file-content {
@@ -767,4 +718,201 @@ input[type="file"] {
         visibility: visible !important;
         opacity: 1 !important;
     }
+}
+
+/* Добавим стили для прогресс-бара */
+.progress {
+    width: 100%;
+    height: 4px;
+    background: var(--border-color);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 10px;
+}
+
+.progress-bar {
+    width: 0;
+    height: 100%;
+    background: var(--primary-color);
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    font-size: 14px;
+    color: var(--text-color);
+    margin-top: 5px;
+    text-align: center;
+}
+
+/* Анимация для прогресс-бара */
+@keyframes progress-animation {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+.progress-bar.active {
+    background: linear-gradient(90deg, 
+        var(--primary-color) 0%, 
+        var(--primary-dark) 50%, 
+        var(--primary-color) 100%);
+    background-size: 200% 100%;
+    animation: progress-animation 2s linear infinite;
+}
+
+/* Стили для состояния загрузки */
+.converting {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+/* Улучшим отображение текста прогресса */
+.progress-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.progress-status .icon {
+    font-size: 18px;
+}
+
+.progress-status.error {
+    color: var(--error-color);
+}
+
+.progress-status.success {
+    color: var(--success-color);
+}
+
+.format-badges {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+}
+
+.badge {
+    background: var(--primary-color);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 14px;
+}
+
+/* Стили для контейнера выбора формата */
+.format-select-container {
+    position: relative;
+    width: 100%;
+    margin-bottom: 15px;
+}
+
+/* Стили для активного состояния */
+.format-select:hover {
+    border-color: var(--primary-color);
+}
+
+/* Стили для мобильных устройств */
+@media (max-width: 768px) {
+    .format-select {
+        height: 44px;
+        font-size: 16px;
+        padding: 8px 40px 8px 12px;
+    }
+}
+
+/* Стили для темной темы в Safari */
+@media not all and (min-resolution:.001dpcm) { 
+    @supports (-webkit-appearance:none) {
+        .format-select {
+            background-color: var(--card-background);
+            color: var(--text-color);
+        }
+        
+        .format-select option {
+            background-color: var(--card-background);
+            color: var(--text-color);
+        }
+    }
+}
+
+/* Стили для белой карточки, которая должна стать чёрной */
+.file-item, 
+.upload-container {
+    background-color: var(--background-color) !important; /* Чёрный фон */
+    color: var(--text-color) !important; /* Белый текст */
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 8px var(--shadow-color);
+}
+
+/* Убедимся, что все элементы внутри тоже правильно оформлены */
+.file-item *, 
+.upload-container * {
+    color: var(--text-color);
+}
+
+/* Стили для выпадающего списка внутри чёрной карточки */
+.format-select {
+    background-color: var(--background-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.format-select option {
+    background-color: var(--background-color);
+    color: var(--text-color);
+}
+
+/* Удаляем настройки конвертации */
+.conversion-settings,
+#conversionSettings,
+.settings-panel {
+    display: none !important;
+}
+
+/* Убираем стили для кнопок форматов */
+.format-buttons {
+    display: none;
+}
+
+/* Обновляем стили для селекта форматов */
+.format-select-container {
+    margin: 20px auto;
+    max-width: 300px;
+}
+
+.format-select {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background-color: var(--background-color);
+    color: var(--text-color);
+    font-size: 16px;
+}
+
+.file-name-input {
+    margin: 15px 0;
+}
+
+.filename-field {
+    width: 100%;
+    padding: 12px;
+    background: white;
+    color: #333;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 16px;
 }
