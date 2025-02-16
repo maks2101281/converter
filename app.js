@@ -1,700 +1,607 @@
-// Инициализация
-let ffmpeg = null;
-const { createFFmpeg, fetchFile } = FFmpeg;
-
-// Проверка поддержки браузера
-const checkBrowserSupport = () => {
-    return !!(window.File && window.FileReader && window.FileList && window.Blob);
-};
-
-// Расширенные поддерживаемые форматы
-const supportedFormats = {
-    'image': {
-        name: 'Изображения',
-        extensions: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'tiff'],
-        mobileFormats: ['jpg', 'png', 'webp'],
-        description: 'Конвертация изображений'
-    },
-    'video': {
-        name: 'Видео',
-        extensions: ['mp4', 'webm', 'mov', 'avi', '3gp', 'mkv'],
-        mobileFormats: ['mp4', '3gp', 'webm'],
-        description: 'Конвертация видео'
-    },
-    'audio': {
-        name: 'Аудио',
-        extensions: ['mp3', 'wav', 'ogg', 'aac', 'm4a', 'wma'],
-        mobileFormats: ['mp3', 'm4a', 'aac'],
-        description: 'Конвертация аудио'
-    },
-    'document': {
-        name: 'Документы',
-        extensions: ['pdf', 'doc', 'docx', 'txt', 'rtf', 'odt', 'pages', 'epub'],
-        mobileFormats: ['pdf', 'txt', 'epub'],
-        description: 'Конвертация документов'
-    }
-};
-
-// Сначала определяем все элементы DOM
-const elements = {
-    dropZone: document.querySelector('.upload-area'),
-    fileInput: document.getElementById('fileInput'),
-    selectFile: document.querySelector('.custom-file-input'),
-    filesList: document.getElementById('filesList'),
-    batchActions: document.getElementById('batchActions'),
-    convertAllBtn: document.getElementById('convertAllBtn'),
-    clearAllBtn: document.getElementById('clearAllBtn'),
-    toastContainer: document.getElementById('toastContainer'),
-    progressBar: document.querySelector('.progress-bar'),
-    progressFill: document.querySelector('.progress-fill'),
-    progressText: document.querySelector('.progress-text'),
-    fileName: document.getElementById('fileName'),
-    fileSize: document.getElementById('fileSize'),
-    formatTo: document.getElementById('formatTo'),
-    convertBtn: document.getElementById('convertBtn'),
-    conversionOptions: document.getElementById('conversionOptions')
-};
-
-let fileQueue = [];
-
-// Обновляем определение браузера
-const deviceInfo = {
-    isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent),
-    isAndroid: /Android/.test(navigator.userAgent),
-    isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
-    isSafari: /^((?!chrome|android).)*safari/i.test(navigator.userAgent),
-    isTelegram: /Telegram/i.test(navigator.userAgent)
-};
-
-// Определение устройства
-const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
-// Инициализация при загрузке страницы
-document.addEventListener('DOMContentLoaded', async () => {
-    if (!checkBrowserSupport()) {
-        showMessage('Ваш браузер не поддерживает необходимые функции', 'error');
-        return;
-    }
-
-    // Инициализируем FFmpeg
-    try {
-        ffmpeg = createFFmpeg({ 
-            log: true,
-            corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
-        });
-        await ffmpeg.load();
-    } catch (error) {
-        console.error('Ошибка инициализации FFmpeg:', error);
-        showErrorMessage('Ошибка инициализации конвертера');
-    }
-
-    // Инициализируем обработчики событий
-    initializeEventListeners();
-});
-
-// Функция инициализации обработчиков
-function initializeEventListeners() {
-    const dropZone = document.querySelector('.upload-area');
-    const fileInput = document.getElementById('fileInput');
-    const filesList = document.getElementById('filesList');
-
-    // Проверяем наличие элементов
-    if (!dropZone || !fileInput || !filesList) {
-        console.error('Не найдены необходимые элементы DOM');
-        return;
-    }
-
-    // Настройка для мобильных
-    if (isMobile) {
-        fileInput.accept = 'image/*,video/*,audio/*,application/*';
-        dropZone.addEventListener('click', () => {
-            fileInput.click();
-        });
-    } 
-    // Настройка для десктопа
-    else {
-        // Drag and Drop
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropZone.classList.add('dragover');
-        });
-
-        dropZone.addEventListener('dragleave', () => {
-            dropZone.classList.remove('dragover');
-        });
-
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('dragover');
-            handleFiles(Array.from(e.dataTransfer.files));
-        });
-
-        dropZone.addEventListener('click', () => {
-            fileInput.click();
-        });
-    }
-
-    // Общие обработчики
-    fileInput.addEventListener('change', (e) => {
-        handleFiles(Array.from(e.target.files));
-    });
-
-    // Обработчики для кнопок пакетных действий
-    elements.convertAllBtn?.addEventListener('click', convertAllFiles);
-    elements.clearAllBtn?.addEventListener('click', clearAllFiles);
-
-    // Обработка изменения формата
-    elements.formatTo.addEventListener('change', () => {
-        elements.convertBtn.disabled = !elements.formatTo.value;
-    });
-
-    // Обработка нажатия кнопки конвертации
-    elements.convertBtn.addEventListener('click', startConversion);
-}
-
-// Обработка файла с проверками
-async function handleFile(file) {
-    try {
-        // Проверка размера файла
-        const maxSize = 100 * 1024 * 1024; // 100MB
-        if (file.size > maxSize) {
-            showMessage('Файл слишком большой. Максимальный размер: 100MB', 'error');
-            return;
-        }
-
-        // Проверка типа файла
-        const fileType = getFileType(file);
-        if (!fileType) {
-            showMessage('Формат файла не поддерживается', 'error');
-            return;
-        }
-
-        // Создаем элемент файла
-        const fileItem = document.createElement('div');
-        fileItem.className = 'file-item';
-        fileItem.innerHTML = `
-            <div class="file-info">
-                <span class="file-name">${file.name}</span>
-                <span class="file-size">${formatFileSize(file.size)}</span>
-                <span class="file-type">${supportedFormats[fileType].name}</span>
-            </div>
-            <div class="convert-controls" style="display: flex !important;">
-                <select class="format-select">
-                    <option value="">Выберите формат для конвертации</option>
-                    ${getFormatOptions(fileType)}
-                </select>
-                <button class="convert-btn" disabled>Конвертировать</button>
-            </div>
-            <div class="progress" style="display: none;">
-                <div class="progress-bar"></div>
-                <span>0%</span>
-            </div>
-        `;
-
-        // Добавляем в список
-        const filesList = document.getElementById('filesList');
-        if (!filesList) {
-            throw new Error('Элемент списка файлов не найден');
-        }
-        filesList.appendChild(fileItem);
-
-        // Настраиваем элементы управления
-        const select = fileItem.querySelector('.format-select');
-        const convertBtn = fileItem.querySelector('.convert-btn');
-        const progress = fileItem.querySelector('.progress');
-
-        if (!select || !convertBtn || !progress) {
-            throw new Error('Не удалось найти элементы управления');
-        }
-
-        // Активируем кнопку при выборе формата
-        select.addEventListener('change', () => {
-            convertBtn.disabled = !select.value;
-        });
-
-        // Обработка конвертации
-        convertBtn.addEventListener('click', async () => {
-            const targetFormat = select.value;
-            if (!targetFormat) return;
-
-            try {
-                // Показываем прогресс
-                convertBtn.disabled = true;
-                progress.style.display = 'block';
-
-                // Конвертируем в зависимости от типа файла
-                let result;
-                if (fileType === 'document') {
-                    result = await convertDocument(file, targetFormat, (p) => {
-                        progress.querySelector('.progress-bar').style.width = `${p}%`;
-                        progress.querySelector('span').textContent = `${Math.round(p)}%`;
-                    });
-                } else {
-                    // Для остальных типов используем FFmpeg
-                    if (!ffmpeg) {
-                        ffmpeg = createFFmpeg({ log: true });
-                        await ffmpeg.load();
-                    }
-                    result = await convertMedia(file, targetFormat, (p) => {
-                        progress.querySelector('.progress-bar').style.width = `${p}%`;
-                        progress.querySelector('span').textContent = `${Math.round(p)}%`;
-                    });
-                }
-
-                // Скачиваем результат
-                const fileName = `converted_${file.name.split('.')[0]}.${targetFormat}`;
-                const blob = new Blob([result], { type: getMimeType(targetFormat) });
-                
-                // Создаем ссылку для скачивания
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = fileName;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-
-                showMessage('Конвертация завершена!');
-            } catch (error) {
-                console.error('Ошибка конвертации:', error);
-                showMessage('Ошибка при конвертации', 'error');
-            } finally {
-                progress.style.display = 'none';
-                convertBtn.disabled = false;
-            }
-        });
-
-    } catch (error) {
-        console.error('Ошибка обработки файла:', error);
-        showMessage('Произошла ошибка', 'error');
-    }
-}
-
-// Функция конвертации документов
-async function convertDocument(file, targetFormat, progressCallback) {
-    // Здесь используем специальные библиотеки для конвертации документов
-    // Например, pdf.js для PDF, docx для Word и т.д.
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            try {
-                // В зависимости от формата используем разные конвертеры
-                let result;
-                switch (targetFormat) {
-                    case 'pdf':
-                        // Конвертация в PDF
-                        result = await convertToPdf(e.target.result);
-                        break;
-                    case 'txt':
-                        // Конвертация в TXT
-                        result = await convertToTxt(e.target.result);
-                        break;
-                    // Добавьте другие форматы по необходимости
-                    default:
-                        throw new Error('Неподдерживаемый формат');
-                }
-                resolve(result);
-            } catch (error) {
-                reject(error);
-            }
-        };
-        reader.readAsArrayBuffer(file);
-    });
-}
-
-// Вспомогательные функции
-function getFileType(file) {
-    const ext = file.name.split('.').pop().toLowerCase();
-    for (const [type, info] of Object.entries(supportedFormats)) {
-        if (info.extensions.includes(ext)) return type;
-    }
-    return null;
-}
-
-function getFormatOptions(fileType) {
-    if (!fileType || !supportedFormats[fileType]) return '';
-    const formats = supportedFormats[fileType];
-    const isMobile = /Mobile|Android|iPhone/i.test(navigator.userAgent);
-    const availableFormats = isMobile ? formats.mobileFormats : formats.extensions;
-    return availableFormats
-        .map(format => `<option value="${format}">${format.toUpperCase()}</option>`)
-        .join('');
-}
-
-function showMessage(text, type = 'success') {
-    alert(text); // Простое уведомление
-}
-
-// Конвертация всех файлов
-async function convertAllFiles() {
-    const fileItems = document.querySelectorAll('.file-item');
-    
-    for (const fileItem of fileItems) {
-        const fileId = fileItem.dataset.fileId;
-        const fileData = fileQueue.find(f => f.id === fileId);
-        const formatSelect = fileItem.querySelector('.format-select');
-        const targetFormat = formatSelect.value;
-        
-        if (fileData && targetFormat) {
-            const convertBtn = fileItem.querySelector('.convert-btn');
-            convertBtn.click(); // Запускаем конвертацию для каждого файла
-        }
-    }
-}
-
-// Очистка всех файлов
-function clearAllFiles() {
-    fileQueue = [];
-    elements.filesList.innerHTML = '';
-    updateBatchActionsVisibility();
-}
-
-// Удаление файла
-function removeFile(fileId) {
-    fileQueue = fileQueue.filter(f => f.id !== fileId);
-    document.querySelector(`[data-file-id="${fileId}"]`).remove();
-    updateBatchActionsVisibility();
-}
-
-// Обновление видимости кнопок пакетной обработки
-function updateBatchActionsVisibility() {
-    elements.batchActions.style.display = 
-        fileQueue.length > 0 ? 'flex' : 'none';
-}
-
-// Показ уведомлений
-function showToast(message, type = 'success') {
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.innerHTML = `
-        <i class="material-icons">${type === 'success' ? 'check_circle' : 'error'}</i>
-        <span>${message}</span>
-    `;
-    
-    elements.toastContainer.appendChild(toast);
-    
-    setTimeout(() => {
-        toast.remove();
-    }, 3000);
-}
-
-// Обновляем вспомогательные функции
-function showSuccessMessage(message) {
-    showToast(message, 'success');
-}
-
-function showErrorMessage(message) {
-    showToast(message, 'error');
-}
-
-// Функция определения MIME-типа
-function getMimeType(format) {
-    const mimeTypes = {
-        'pdf': 'application/pdf',
-        'doc': 'application/msword',
-        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'txt': 'text/plain',
-        'rtf': 'application/rtf',
-        'epub': 'application/epub+zip',
-        // Добавьте другие MIME-типы по необходимости
-    };
-    return mimeTypes[format] || 'application/octet-stream';
-}
-
-// Начало конвертации
-async function startConversion() {
-    try {
-        elements.convertBtn.disabled = true;
-        elements.progressBar.style.display = 'block';
-        updateProgress(0);
-
-        const targetFormat = elements.formatTo.value;
-        const result = await convertFile(currentFile, targetFormat);
-        
-        if (result) {
-            updateProgress(100);
-            downloadFile(result, currentFile.name, targetFormat);
-        }
-    } catch (error) {
-        alert('Ошибка при конвертации: ' + error.message);
-    } finally {
-        elements.convertBtn.disabled = false;
-    }
-}
-
-// Добавляем функцию конвертации для разных типов файлов
-async function convertFile(file, targetFormat) {
-    try {
-        if (!ffmpeg) {
-            ffmpeg = createFFmpeg({ 
-                log: true,
-                corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
-            });
-            await ffmpeg.load();
-        }
-
-        const inputFileName = 'input_' + file.name;
-        const outputFileName = 'output.' + targetFormat;
-        
-        // Загружаем файл в память FFmpeg
-        ffmpeg.FS('writeFile', inputFileName, await fetchFile(file));
-
-        // Определяем команды для конвертации
-        const fileType = getFileType(file);
-        let outputOptions = [];
-
-        switch (fileType) {
-            case 'video':
-                outputOptions = [
-                    '-c:v', 'libx264',
-                    '-preset', 'fast',
-                    '-crf', '23'
-                ];
-                if (deviceInfo.isMobile) {
-                    outputOptions.push('-vf', 'scale=-2:720');
-                }
-                break;
-            case 'audio':
-                outputOptions = [
-                    '-c:a', 'aac',
-                    '-b:a', deviceInfo.isMobile ? '128k' : '192k'
-                ];
-                break;
-            case 'image':
-                outputOptions = [
-                    '-quality', deviceInfo.isMobile ? '85' : '90'
-                ];
-                break;
-        }
-
-        // Выполняем конвертацию
-        await ffmpeg.run('-i', inputFileName, ...outputOptions, outputFileName);
-
-        // Читаем результат
-        const data = ffmpeg.FS('readFile', outputFileName);
-
-        // Очищаем файлы
-        ffmpeg.FS('unlink', inputFileName);
-        ffmpeg.FS('unlink', outputFileName);
-
-        // Создаем blob с правильным mime-type
-        const blob = new Blob([data.buffer], { type: getMimeType(targetFormat) });
-        
-        return blob;
-    } catch (error) {
-        console.error('Ошибка конвертации:', error);
-        showErrorMessage(`Ошибка конвертации: ${error.message}`);
-        throw error;
-    }
-}
-
-// Обновление прогресса
-function updateProgress(percent) {
-    elements.progressFill.style.width = `${percent}%`;
-    elements.progressText.textContent = `${Math.round(percent)}%`;
-}
-
-// Улучшенная функция скачивания
-function downloadFile(blob, originalFileName, targetFormat) {
-    const originalName = originalFileName.split('.')[0];
-    const fileName = `${originalName}_converted.${targetFormat}`;
-    
-    if (deviceInfo.isMobile) {
-        // Для мобильных устройств
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fileName;
-        a.style.display = 'none';
-        document.body.appendChild(a);
-        a.click();
-        
-        // Очистка
-        setTimeout(() => {
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }, 100);
-    } else {
-        // Для десктопов
-        saveAs(blob, fileName);
-    }
-    
-    showSuccessMessage(`Файл ${fileName} готов к скачиванию`);
-}
-
-// Добавляем стили для прогресс бара в CSS
-const style = document.createElement('style');
-style.textContent = `
-    .file-item .progress-bar {
-        width: 100%;
-        height: 4px;
-        background-color: #ddd;
-        border-radius: 2px;
-        margin-top: 10px;
-        position: relative;
-    }
-
-    .file-item .progress-fill {
-        height: 100%;
-        background-color: var(--primary-color);
-        border-radius: 2px;
-        width: 0;
-        transition: width 0.3s ease;
-    }
-
-    .file-item .progress-text {
-        position: absolute;
-        right: 0;
-        top: -20px;
-        font-size: 12px;
-        color: #999;
-    }
-
-    .file-item .file-actions {
-        display: flex;
-        gap: 10px;
-        align-items: center;
-    }
-
-    .file-item .format-select {
-        padding: 5px;
-        border-radius: 4px;
-        border: 1px solid #ddd;
-    }
-`;
-
-document.head.appendChild(style);
-
-// Добавляем оптимизацию для мобильных форматов
-async function optimizeForMobile(blob, fileType, targetFormat) {
-    if (!deviceInfo.isMobile) return blob;
-
-    const ffmpeg = createFFmpeg({ log: true });
-    await ffmpeg.load();
-
-    switch (fileType) {
-        case 'video':
-            // Оптимизация для мобильного видео
-            if (targetFormat === 'mp4') {
-                await ffmpeg.run('-i', 'input.mp4', 
-                    '-c:v', 'libx264', 
-                    '-preset', 'fast',
-                    '-crf', '28',
-                    '-movflags', '+faststart',
-                    '-vf', 'scale=-2:720', // 720p для мобильных
-                    'output.mp4'
-                );
-            }
-            break;
-        case 'image':
-            // Оптимизация для мобильных изображений
-            if (targetFormat === 'webp') {
-                await ffmpeg.run('-i', 'input.webp',
-                    '-quality', '85',
-                    '-resize', '1280x720>', // Максимальный размер
-                    'output.webp'
-                );
-            }
-            break;
-        case 'audio':
-            // Оптимизация для мобильного аудио
-            if (targetFormat === 'mp3') {
-                await ffmpeg.run('-i', 'input.mp3',
-                    '-b:a', '128k', // Битрейт для мобильных
-                    'output.mp3'
-                );
-            }
-            break;
-    }
-
-    return blob;
-}
-
-// Добавляем определение возможностей устройства
-function getDeviceCapabilities() {
-    return {
-        isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
-        isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent),
-        isAndroid: /Android/.test(navigator.userAgent),
-        maxFileSize: 500 * 1024 * 1024, // 500MB для мобильных
-        supportedFormats: {
-            image: ['jpg', 'webp', 'heic'],
-            video: ['mp4', 'webm', '3gp'],
-            audio: ['mp3', 'm4a', 'aac']
-        }
-    };
-}
-
-// Добавляем обработчик ошибок
-window.onerror = function(message, source, lineno, colno, error) {
-    console.error('Глобальная ошибка:', error);
-    showErrorMessage('Произошла ошибка. Попробуйте перезагрузить страницу');
-    return false;
-};
-
-// Обновленная функция конвертации
-async function handleConversion(fileItem, file, targetFormat) {
-    try {
-        const progressBar = fileItem.querySelector('.progress-container');
-        const progressFill = fileItem.querySelector('.progress-fill');
-        const progressText = fileItem.querySelector('.progress-text');
-        const convertBtn = fileItem.querySelector('.convert-btn');
-
-        progressBar.style.display = 'block';
-        convertBtn.disabled = true;
-
-        // Показываем индикатор загрузки для мобильных
-        if (deviceInfo.isMobile) {
-            showLoadingIndicator();
-        }
-
-        const convertedBlob = await convertFile(file, targetFormat, (progress) => {
-            progressFill.style.width = `${progress}%`;
-            progressText.textContent = `${Math.round(progress)}%`;
-        });
-
-        // Адаптивное сохранение файла
-        if (deviceInfo.isMobile) {
-            await saveMobileFile(convertedBlob, file.name, targetFormat);
-        } else {
-            saveAs(convertedBlob, `converted_${file.name}.${targetFormat}`);
-        }
-
-        showSuccessMessage('Конвертация завершена!');
-    } catch (error) {
-        showErrorMessage('Ошибка при конвертации');
-        console.error(error);
-    } finally {
-        hideLoadingIndicator();
-        convertBtn.disabled = false;
-    }
-}
-
-// Функция сохранения для мобильных устройств
-async function saveMobileFile(blob, originalName, format) {
-    const fileName = `converted_${originalName}.${format}`;
-    
-    if (deviceInfo.isIOS) {
-        // Специальная обработка для iOS
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(() => {
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }, 100);
-    } else if (deviceInfo.isAndroid) {
-        // Специальная обработка для Android
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fileName;
-        a.click();
-        URL.revokeObjectURL(url);
-    }
-}
+                            // Инициализация
+                            const { createFFmpeg } = FFmpeg;
+                            const ffmpeg = createFFmpeg({ 
+                                log: true,
+                                corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
+                            });
+                            let isConverting = false;
+
+                            // Определение устройства и браузера
+                            const deviceInfo = {
+                                isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
+                                isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent)
+                            };
+
+                            // Расширенные поддерживаемые форматы
+                            const supportedFormats = {
+                                'image': {
+                                    name: 'Изображения',
+                                    extensions: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'tiff', 'ico', 'svg'],
+                                    mobileFormats: ['jpg', 'png', 'webp'],
+                                    description: 'Конвертация изображений'
+                                },
+                                'video': {
+                                    name: 'Видео',
+                                    extensions: ['mp4', 'webm', 'mov', '3gp', 'avi', 'mkv', 'flv', 'wmv', 'm4v'],
+                                    mobileFormats: ['mp4', '3gp', 'webm'],
+                                    description: 'Конвертация видео'
+                                },
+                                'audio': {
+                                    name: 'Аудио',
+                                    extensions: ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'wma', 'flac', 'alac', 'aiff'],
+                                    mobileFormats: ['mp3', 'm4a', 'aac'],
+                                    description: 'Конвертация аудио'
+                                },
+                                'document': {
+                                    name: 'Документы',
+                                    extensions: ['pdf', 'doc', 'docx', 'txt', 'rtf', 'odt', 'pages', 'epub', 'fb2', 'mobi'],
+                                    mobileFormats: ['pdf', 'txt', 'epub'],
+                                    description: 'Конвертация документов'
+                                }
+                            };
+
+                            // Сначала определяем все элементы DOM
+                            const elements = {
+                                dropZone: document.querySelector('.upload-area'),
+                                fileInput: document.getElementById('fileInput'),
+                                selectFile: document.querySelector('.custom-file-input'),
+                                filesList: document.getElementById('filesList'),
+                                batchActions: document.getElementById('batchActions'),
+                                convertAllBtn: document.getElementById('convertAllBtn'),
+                                clearAllBtn: document.getElementById('clearAllBtn'),
+                                toastContainer: document.getElementById('toastContainer'),
+                                progressBar: document.querySelector('.progress-bar'),
+                                progressFill: document.querySelector('.progress-fill'),
+                                progressText: document.querySelector('.progress-text'),
+                                fileName: document.getElementById('fileName'),
+                                fileSize: document.getElementById('fileSize'),
+                                formatTo: document.getElementById('formatTo'),
+                                convertBtn: document.getElementById('convertBtn'),
+                                conversionOptions: document.getElementById('conversionOptions')
+                            };
+
+                            let fileQueue = [];
+
+                            // Добавим проверку совместимости браузера
+                            function checkBrowserSupport() {
+                                // Проверяем основные API
+                                const requirements = {
+                                    fileReader: typeof FileReader !== 'undefined',
+                                    blob: typeof Blob !== 'undefined',
+                                    arrayBuffer: typeof ArrayBuffer !== 'undefined',
+                                    promise: typeof Promise !== 'undefined',
+                                    webAssembly: typeof WebAssembly !== 'undefined'
+                                };
+
+                                // Проверяем iOS Safari отдельно
+                                const isIOSSafari = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                                
+                                if (isIOSSafari) {
+                                    // Специальная обработка для iOS Safari
+                                    document.documentElement.classList.add('ios');
+                                }
+
+                                // Проверяем Android
+                                const isAndroid = /Android/.test(navigator.userAgent);
+                                if (isAndroid) {
+                                    document.documentElement.classList.add('android');
+                                }
+
+                                return Object.values(requirements).every(req => req === true);
+                            }
+
+                            // Инициализация с проверкой устройства
+                            document.addEventListener('DOMContentLoaded', () => {
+                                if (!checkBrowserSupport()) {
+                                    alert('Ваш браузер может не поддерживать все функции. Рекомендуем использовать последнюю версию Chrome, Firefox, Safari или Edge.');
+                                }
+
+                                // Оптимизация для мобильных устройств
+                                if (/Mobi|Android/i.test(navigator.userAgent)) {
+                                    document.body.classList.add('mobile-device');
+                                }
+                            });
+
+                            // Обработка файла
+                            async function handleFile(file) {
+                                try {
+                                    const fileType = getFileType(file);
+                                    if (!fileType) {
+                                        showToast(`Формат файла ${file.name} не поддерживается`, 'error');
+                                        return;
+                                    }
+
+                                    const fileItem = createFileItem(file, fileType);
+                                    document.getElementById('filesList').appendChild(fileItem);
+                                } catch (error) {
+                                    showToast('Ошибка обработки файла', 'error');
+                                    console.error('Ошибка обработки файла:', error);
+                                }
+                            }
+
+                            // Создание элемента файла
+                            function createFileItem(file, fileType) {
+                                const div = document.createElement('div');
+                                div.className = 'file-item';
+                                div.innerHTML = `
+                                    <div class="file-info">
+                                        <span class="file-name">${file.name}</span>
+                                        <span class="file-size">${formatFileSize(file.size)}</span>
+                                    </div>
+                                    <div class="convert-controls">
+                                        <div class="format-select-container">
+                                            <select class="format-select">
+                                                <option value="" disabled selected>Выберите формат конвертации</option>
+                                                ${getFormatOptions(fileType)}
+                                            </select>
+                                        </div>
+                                        <button class="convert-btn" disabled>Конвертировать</button>
+                                    </div>
+                                    <div class="progress" style="display: none;">
+                                        <div class="progress-bar"></div>
+                                        <div class="progress-text">Подготовка к конвертации...</div>
+                                    </div>
+                                `;
+
+                                const select = div.querySelector('.format-select');
+                                const convertBtn = div.querySelector('.convert-btn');
+                                const progress = div.querySelector('.progress');
+                                const progressBar = progress.querySelector('.progress-bar');
+
+                                select.addEventListener('change', () => {
+                                    convertBtn.disabled = !select.value;
+                                });
+
+                                convertBtn.addEventListener('click', async () => {
+                                    const targetFormat = select.value;
+                                    if (!targetFormat || isConverting) return;
+
+                                    try {
+                                        convertBtn.disabled = true;
+                                        progress.style.display = 'block';
+                                        select.disabled = true;
+
+                                        const result = await convertFile(file, targetFormat, (percent) => {
+                                            progressBar.style.width = `${percent}%`;
+                                        });
+
+                                        const fileName = `converted_${file.name.split('.')[0]}.${targetFormat}`;
+                                        await saveFile(result, fileName, targetFormat);
+
+                                        showToast('Конвертация завершена!', 'success');
+                                    } catch (error) {
+                                        showToast(error.message || 'Ошибка при конвертации', 'error');
+                                    } finally {
+                                        progress.style.display = 'none';
+                                        convertBtn.disabled = false;
+                                        select.disabled = false;
+                                        progressBar.style.width = '0%';
+                                    }
+                                });
+
+                                return div;
+                            }
+
+                            // Обновленная функция конвертации
+                            async function convertFile(file, targetFormat, progressCallback) {
+                                if (!ffmpeg.isLoaded()) {
+                                    await ffmpeg.load();
+                                }
+
+                                const inputFormat = file.name.split('.').pop().toLowerCase();
+                                const inputFileName = `input.${inputFormat}`;
+                                const outputFileName = `output.${targetFormat}`;
+
+                                try {
+                                    ffmpeg.FS('writeFile', inputFileName, await fetchFile(file));
+                                    
+                                    let args = [];
+                                    
+                                    // Настройки конвертации в зависимости от типа файла
+                                    if (file.type.startsWith('video/')) {
+                                        args = [
+                                            '-i', inputFileName,
+                                            '-c:v', 'libx264',
+                                            '-preset', 'medium',
+                                            '-c:a', 'aac',
+                                            '-b:a', '128k',
+                                            outputFileName
+                                        ];
+                                    } else if (file.type.startsWith('audio/')) {
+                                        args = [
+                                            '-i', inputFileName,
+                                            '-c:a', 'aac',
+                                            '-b:a', '192k',
+                                            outputFileName
+                                        ];
+                                    } else if (file.type.startsWith('image/')) {
+                                        args = ['-i', inputFileName];
+                                        if (targetFormat === 'webp') {
+                                            args.push('-quality', '90');
+                                        }
+                                        args.push(outputFileName);
+                                    }
+
+                                    await ffmpeg.run(...args);
+                                    
+                                    const data = ffmpeg.FS('readFile', outputFileName);
+                                    
+                                    // Очистка
+                                    ffmpeg.FS('unlink', inputFileName);
+                                    ffmpeg.FS('unlink', outputFileName);
+
+                                    return new Uint8Array(data.buffer);
+                                } catch (error) {
+                                    console.error('Ошибка конвертации:', error);
+                                    throw new Error('Ошибка при конвертации файла');
+                                }
+                            }
+
+                            // Функция для конвертации документов
+                            async function convertDocument(file, targetFormat) {
+                                return new Promise((resolve, reject) => {
+                                    const reader = new FileReader();
+                                    reader.onload = async (e) => {
+                                        try {
+                                            let result;
+                                            // Здесь будет логика конвертации документов
+                                            // В реальном приложении нужно подключить соответствующие библиотеки
+                                            resolve(result);
+                                        } catch (error) {
+                                            reject(error);
+                                        }
+                                    };
+                                    reader.readAsArrayBuffer(file);
+                                });
+                            }
+
+                            // Сохранение файла
+                            async function saveFile(data, fileName, format) {
+                                const blob = new Blob([data], { type: getMimeType(format) });
+                                
+                                if (deviceInfo.isMobile) {
+                                    const url = URL.createObjectURL(blob);
+                                    const a = document.createElement('a');
+                                    a.href = url;
+                                    a.download = fileName;
+                                    document.body.appendChild(a);
+                                    a.click();
+                                    setTimeout(() => {
+                                        document.body.removeChild(a);
+                                        URL.revokeObjectURL(url);
+                                    }, 100);
+                                } else {
+                                    saveAs(blob, fileName);
+                                }
+                            }
+
+                            // Улучшенная обработка загрузки файлов
+                            function handleFileUpload(files) {
+                                const file = files[0];
+                                
+                                // Проверка размера файла
+                                const maxSize = 1024 * 1024 * 100; // 100MB
+                                if (file.size > maxSize) {
+                                    alert('Файл слишком большой. Максимальный размер: 100MB');
+                                    return;
+                                }
+
+                                // Проверка поддержки формата
+                                const fileType = getFileType(file);
+                                if (fileType === 'unknown') {
+                                    alert('Формат файла не поддерживается');
+                                    return;
+                                }
+
+                                const formats = getAvailableFormats(fileType);
+                                showConversionInterface(file, formats);
+                            }
+
+                            // Определение типа файла
+                            function getFileType(file) {
+                                const extension = file.name.split('.').pop().toLowerCase();
+                                
+                                const typeMap = {
+                                    // Изображения
+                                    'jpg': 'image', 'jpeg': 'image', 'png': 'image', 'gif': 'image', 'webp': 'image', 
+                                    'bmp': 'image', 'tiff': 'image', 'heic': 'image', 'raw': 'image',
+                                    
+                                    // Видео
+                                    'mp4': 'video', 'webm': 'video', 'avi': 'video', 'mov': 'video', 'mkv': 'video',
+                                    '3gp': 'video', 'flv': 'video', 'wmv': 'video', 'm4v': 'video',
+                                    
+                                    // Аудио
+                                    'mp3': 'audio', 'wav': 'audio', 'ogg': 'audio', 'm4a': 'audio', 'aac': 'audio',
+                                    'flac': 'audio', 'wma': 'audio', 'aiff': 'audio', 'alac': 'audio',
+                                    
+                                    // Документы
+                                    'pdf': 'document', 'doc': 'document', 'docx': 'document', 'txt': 'document',
+                                    'rtf': 'document', 'odt': 'document', 'pages': 'document', 'epub': 'document',
+                                    'fb2': 'document', 'mobi': 'document'
+                                };
+                                
+                                return typeMap[extension] || 'unknown';
+                            }
+
+                            // Функция получения доступных форматов для конвертации
+                            function getAvailableFormats(fileType) {
+                                const formats = {
+                                    'image': {
+                                        desktop: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'tiff', 'ico', 'svg'],
+                                        mobile: ['jpg', 'png', 'webp']
+                                    },
+                                    'video': {
+                                        desktop: ['mp4', 'webm', 'mov', 'avi', 'mkv', 'flv', 'wmv', 'm4v'],
+                                        mobile: ['mp4', '3gp', 'webm']
+                                    },
+                                    'audio': {
+                                        desktop: ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'wma', 'flac', 'alac'],
+                                        mobile: ['mp3', 'm4a', 'aac']
+                                    },
+                                    'document': {
+                                        desktop: ['pdf', 'doc', 'docx', 'txt', 'rtf', 'odt', 'epub'],
+                                        mobile: ['pdf', 'txt', 'epub']
+                                    }
+                                };
+
+                                // Определяем, мобильное устройство или десктоп
+                                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                                
+                                return formats[fileType] ? (isMobile ? formats[fileType].mobile : formats[fileType].desktop) : [];
+                            }
+
+                            // Обновление списка форматов в селекте
+                            function updateFormatSelect(formats) {
+                                const select = document.querySelector('.format-select');
+                                select.innerHTML = formats.map(format => 
+                                    `<option value="${format}">${format.toUpperCase()}</option>`
+                                ).join('');
+                            }
+
+                            // Вспомогательные функции
+                            function getFormatOptions(fileType) {
+                                const formats = {
+                                    'video': [
+                                        { value: 'mp4', label: 'MP4 - Видео' },
+                                        { value: 'webm', label: 'WebM - Веб-видео' },
+                                        { value: 'mov', label: 'MOV - Apple QuickTime' },
+                                        { value: '3gp', label: '3GP - Мобильное видео' },
+                                        { value: 'avi', label: 'AVI - Видео формат' }
+                                    ],
+                                    'audio': [
+                                        { value: 'mp3', label: 'MP3 - Аудио' },
+                                        { value: 'wav', label: 'WAV - Без сжатия' },
+                                        { value: 'ogg', label: 'OGG - Открытый формат' },
+                                        { value: 'm4a', label: 'M4A - AAC аудио' },
+                                        { value: 'aac', label: 'AAC - Продвинутое аудио' }
+                                    ],
+                                    'image': [
+                                        { value: 'jpg', label: 'JPG - Фото' },
+                                        { value: 'png', label: 'PNG - Без потерь' },
+                                        { value: 'webp', label: 'WebP - Веб-формат' },
+                                        { value: 'gif', label: 'GIF - Анимация' },
+                                        { value: 'bmp', label: 'BMP - Bitmap' }
+                                    ]
+                                };
+
+                                if (!fileType || !formats[fileType]) return '';
+
+                                return formats[fileType]
+                                    .map(format => `<option value="${format.value}">${format.label}</option>`)
+                                    .join('');
+                            }
+
+                            function formatFileSize(bytes) {
+                                if (bytes === 0) return '0 Bytes';
+                                const k = 1024;
+                                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                            }
+
+                            function showToast(message, type = 'success') {
+                                const toast = document.createElement('div');
+                                toast.className = `toast ${type}`;
+                                toast.textContent = message;
+                                
+                                const container = document.getElementById('toastContainer');
+                                if (container) {
+                                    container.appendChild(toast);
+                                    setTimeout(() => toast.remove(), 3000);
+                                }
+                            }
+
+                            // Обновленная функция getMimeType
+                            function getMimeType(format) {
+                                const mimeTypes = {
+                                    // Изображения
+                                    'jpg': 'image/jpeg',
+                                    'jpeg': 'image/jpeg',
+                                    'png': 'image/png',
+                                    'webp': 'image/webp',
+                                    'gif': 'image/gif',
+                                    'bmp': 'image/bmp',
+                                    'tiff': 'image/tiff',
+                                    'ico': 'image/x-icon',
+                                    'svg': 'image/svg+xml',
+                                    
+                                    // Видео
+                                    'mp4': 'video/mp4',
+                                    'webm': 'video/webm',
+                                    'mov': 'video/quicktime',
+                                    '3gp': 'video/3gpp',
+                                    'avi': 'video/x-msvideo',
+                                    'mkv': 'video/x-matroska',
+                                    'flv': 'video/x-flv',
+                                    'wmv': 'video/x-ms-wmv',
+                                    
+                                    // Аудио
+                                    'mp3': 'audio/mpeg',
+                                    'wav': 'audio/wav',
+                                    'ogg': 'audio/ogg',
+                                    'm4a': 'audio/mp4',
+                                    'aac': 'audio/aac',
+                                    'wma': 'audio/x-ms-wma',
+                                    'flac': 'audio/flac',
+                                    'alac': 'audio/alac',
+                                    'aiff': 'audio/aiff',
+                                    
+                                    // Документы
+                                    'pdf': 'application/pdf',
+                                    'doc': 'application/msword',
+                                    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                                    'txt': 'text/plain',
+                                    'rtf': 'application/rtf',
+                                    'epub': 'application/epub+zip',
+                                    'fb2': 'application/x-fictionbook+xml',
+                                    'mobi': 'application/x-mobipocket-ebook'
+                                };
+                                return mimeTypes[format] || 'application/octet-stream';
+                            }
+
+                            // Конвертация всех файлов
+                            async function convertAllFiles() {
+                                const fileItems = document.querySelectorAll('.file-item');
+                                
+                                for (const fileItem of fileItems) {
+                                    const fileId = fileItem.dataset.fileId;
+                                    const fileData = fileQueue.find(f => f.id === fileId);
+                                    const formatSelect = fileItem.querySelector('.format-select');
+                                    const targetFormat = formatSelect.value;
+                                    
+                                    if (fileData && targetFormat) {
+                                        const convertBtn = fileItem.querySelector('.convert-btn');
+                                        convertBtn.click(); // Запускаем конвертацию для каждого файла
+                                    }
+                                }
+                            }
+
+                            // Очистка всех файлов
+                            function clearAllFiles() {
+                                fileQueue = [];
+                                elements.filesList.innerHTML = '';
+                                updateBatchActionsVisibility();
+                            }
+
+                            // Удаление файла
+                            function removeFile(fileId) {
+                                fileQueue = fileQueue.filter(f => f.id !== fileId);
+                                document.querySelector(`[data-file-id="${fileId}"]`).remove();
+                                updateBatchActionsVisibility();
+                            }
+
+                            // Обновление видимости кнопок пакетной обработки
+                            function updateBatchActionsVisibility() {
+                                elements.batchActions.style.display = 
+                                    fileQueue.length > 0 ? 'flex' : 'none';
+                            }
+
+                            // Добавляем стили для прогресс бара в CSS
+                            const style = document.createElement('style');
+                            style.textContent = `
+                                .file-item .progress-bar {
+                                    width: 100%;
+                                    height: 4px;
+                                    background-color: #ddd;
+                                    border-radius: 2px;
+                                    margin-top: 10px;
+                                    position: relative;
+                                }
+
+                                .file-item .progress-fill {
+                                    height: 100%;
+                                    background-color: var(--primary-color);
+                                    border-radius: 2px;
+                                    width: 0;
+                                    transition: width 0.3s ease;
+                                }
+
+                                .file-item .progress-text {
+                                    position: absolute;
+                                    right: 0;
+                                    top: -20px;
+                                    font-size: 12px;
+                                    color: #999;
+                                }
+
+                                .file-item .file-actions {
+                                    display: flex;
+                                    gap: 10px;
+                                    align-items: center;
+                                }
+
+                                .file-item .format-select {
+                                    padding: 5px;
+                                    border-radius: 4px;
+                                    border: 1px solid #ddd;
+                                }
+                            `;
+
+                            document.head.appendChild(style);
+
+                            // Добавляем оптимизацию для мобильных форматов
+                            async function optimizeForMobile(blob, fileType, targetFormat) {
+                                if (!deviceInfo.isMobile) return blob;
+
+                                const ffmpeg = createFFmpeg({ log: true });
+                                await ffmpeg.load();
+
+                                switch (fileType) {
+                                    case 'video':
+                                        // Оптимизация для мобильного видео
+                                        if (targetFormat === 'mp4') {
+                                            await ffmpeg.run('-i', 'input.mp4', 
+                                                '-c:v', 'libx264', 
+                                                '-preset', 'fast',
+                                                '-crf', '28',
+                                                '-movflags', '+faststart',
+                                                '-vf', 'scale=-2:720', // 720p для мобильных
+                                                'output.mp4'
+                                            );
+                                        }
+                                        break;
+                                    case 'image':
+                                        // Оптимизация для мобильных изображений
+                                        if (targetFormat === 'webp') {
+                                            await ffmpeg.run('-i', 'input.webp',
+                                                '-quality', '85',
+                                                '-resize', '1280x720>', // Максимальный размер
+                                                'output.webp'
+                                            );
+                                        }
+                                        break;
+                                    case 'audio':
+                                        // Оптимизация для мобильного аудио
+                                        if (targetFormat === 'mp3') {
+                                            await ffmpeg.run('-i', 'input.mp3',
+                                                '-b:a', '128k', // Битрейт для мобильных
+                                                'output.mp3'
+                                            );
+                                        }
+                                        break;
+                                }
+
+                                return blob;
+                            }
+
+                            // Добавляем определение возможностей устройства
+                            function getDeviceCapabilities() {
+                                return {
+                                    isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
+                                    isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent),
+                                    isAndroid: /Android/.test(navigator.userAgent),
+                                    maxFileSize: 500 * 1024 * 1024, // 500MB для мобильных
+                                    supportedFormats: {
+                                        image: ['jpg', 'webp', 'heic'],
+                                        video: ['mp4', 'webm', '3gp'],
+                                        audio: ['mp3', 'm4a', 'aac']
+                                    }
+                                };
+                            }
+
+                            // Добавляем обработчик ошибок
+                            window.onerror = function(message, source, lineno, colno, error) {
+                                console.error('Глобальная ошибка:', error);
+                                showToast('Произошла ошибка. Попробуйте перезагрузить страницу', 'error');
+                                return false;
+                            };
