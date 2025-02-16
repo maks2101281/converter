@@ -164,75 +164,72 @@ function handleFile(file) {
     showSuccessMessage(`Файл ${file.name} добавлен`);
 }
 
-// Создание элемента файла
+// Определение типа устройства и браузера
+const deviceInfo = {
+    isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent),
+    isAndroid: /Android/.test(navigator.userAgent),
+    isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
+    isSafari: /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
+};
+
+// Обновленная функция создания элемента файла
 function createFileItem(file, fileId, fileType) {
     const div = document.createElement('div');
     div.className = 'file-item';
     div.dataset.fileId = fileId;
 
+    // Адаптивная HTML структура
     div.innerHTML = `
-        <i class="material-icons file-icon">${getFileIcon(fileType)}</i>
-        <div class="file-info">
-            <div class="file-name">${file.name}</div>
-            <div class="file-size">${formatFileSize(file.size)}</div>
+        <div class="file-content">
+            <div class="file-info">
+                <span class="file-name">${file.name}</span>
+                <span class="file-size">${formatFileSize(file.size)}</span>
+            </div>
+            <div class="file-controls">
+                <div class="format-select-wrapper">
+                    <select class="format-select" aria-label="Выберите формат конвертации">
+                        <option value="" disabled selected>Выберите формат</option>
+                        ${getFormatOptions(fileType, file.name.split('.').pop())}
+                    </select>
+                </div>
+                <button class="convert-btn" disabled>
+                    <span class="btn-text">Конвертировать</span>
+                </button>
+            </div>
         </div>
-        <div class="file-actions">
-            <select class="format-select">
-                ${getFormatOptions(fileType, file.name.split('.').pop())}
-            </select>
-            <button class="primary-button convert-btn">
-                Конвертировать
-            </button>
-        </div>
-        <div class="progress-bar" style="display: none;">
-            <div class="progress-fill"></div>
+        <div class="progress-container" style="display: none;">
+            <div class="progress-bar">
+                <div class="progress-fill"></div>
+            </div>
             <span class="progress-text">0%</span>
         </div>
     `;
 
-    // Добавляем обработчик для кнопки конвертации
+    // Добавляем обработчики событий
+    const formatSelect = div.querySelector('.format-select');
     const convertBtn = div.querySelector('.convert-btn');
-    convertBtn.addEventListener('click', async () => {
-        const formatSelect = div.querySelector('.format-select');
-        const targetFormat = formatSelect.value;
-        
-        if (!targetFormat) {
-            showErrorMessage('Выберите формат конвертации');
-            return;
-        }
-
-        // Показываем прогресс бар
-        const progressBar = div.querySelector('.progress-bar');
-        const progressFill = div.querySelector('.progress-fill');
-        const progressText = div.querySelector('.progress-text');
-        progressBar.style.display = 'block';
-        convertBtn.disabled = true;
-        formatSelect.disabled = true;
-
-        try {
-            // Начинаем конвертацию
-            updateProgress(progressFill, progressText, 10);
-            const result = await convertFile(file, targetFormat);
-            updateProgress(progressFill, progressText, 90);
-
-            if (result) {
-                // Скачиваем файл
-                downloadFile(result, file.name, targetFormat);
-                updateProgress(progressFill, progressText, 100);
-                showSuccessMessage(`Файл ${file.name} успешно сконвертирован`);
-            }
-        } catch (error) {
-            showErrorMessage(`Ошибка конвертации: ${error.message}`);
-        } finally {
-            // Возвращаем кнопки в нормальное состояние через 2 секунды
-            setTimeout(() => {
-                progressBar.style.display = 'none';
-                convertBtn.disabled = false;
-                formatSelect.disabled = false;
-                updateProgress(progressFill, progressText, 0);
-            }, 2000);
-        }
+    
+    // Универсальные обработчики для всех устройств
+    formatSelect.addEventListener('change', () => {
+        convertBtn.disabled = !formatSelect.value;
     });
+
+    convertBtn.addEventListener('click', async () => {
+        await handleConversion(div, file, formatSelect.value);
+    });
+
+    // Специальные обработчики для тач-устройств
+    if (deviceInfo.isMobile) {
+        div.querySelectorAll('button, select').forEach(element => {
+            element.addEventListener('touchstart', e => {
+                e.target.style.opacity = '0.7';
+            });
+            
+            element.addEventListener('touchend', e => {
+                e.target.style.opacity = '1';
+            });
+        });
+    }
 
     return div;
 }
@@ -597,3 +594,69 @@ window.onerror = function(message, source, lineno, colno, error) {
     showErrorMessage('Произошла ошибка. Попробуйте перезагрузить страницу');
     return false;
 };
+
+// Обновленная функция конвертации
+async function handleConversion(fileItem, file, targetFormat) {
+    try {
+        const progressBar = fileItem.querySelector('.progress-container');
+        const progressFill = fileItem.querySelector('.progress-fill');
+        const progressText = fileItem.querySelector('.progress-text');
+        const convertBtn = fileItem.querySelector('.convert-btn');
+
+        progressBar.style.display = 'block';
+        convertBtn.disabled = true;
+
+        // Показываем индикатор загрузки для мобильных
+        if (deviceInfo.isMobile) {
+            showLoadingIndicator();
+        }
+
+        const convertedBlob = await convertFile(file, targetFormat, (progress) => {
+            progressFill.style.width = `${progress}%`;
+            progressText.textContent = `${Math.round(progress)}%`;
+        });
+
+        // Адаптивное сохранение файла
+        if (deviceInfo.isMobile) {
+            await saveMobileFile(convertedBlob, file.name, targetFormat);
+        } else {
+            saveAs(convertedBlob, `converted_${file.name}.${targetFormat}`);
+        }
+
+        showSuccessMessage('Конвертация завершена!');
+    } catch (error) {
+        showErrorMessage('Ошибка при конвертации');
+        console.error(error);
+    } finally {
+        hideLoadingIndicator();
+        convertBtn.disabled = false;
+    }
+}
+
+// Функция сохранения для мобильных устройств
+async function saveMobileFile(blob, originalName, format) {
+    const fileName = `converted_${originalName}.${format}`;
+    
+    if (deviceInfo.isIOS) {
+        // Специальная обработка для iOS
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 100);
+    } else if (deviceInfo.isAndroid) {
+        // Специальная обработка для Android
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+}
