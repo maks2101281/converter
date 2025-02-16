@@ -57,20 +57,36 @@ let ffmpeg = null;
 // Инициализация FFmpeg
 const { createFFmpeg, fetchFile } = FFmpeg;
 
-// Ждем полной загрузки DOM перед инициализацией
+// Инициализация элементов DOM
 document.addEventListener('DOMContentLoaded', () => {
-    // Проверяем наличие всех необходимых элементов
+    const elements = {
+        dropZone: document.querySelector('.upload-area'),
+        fileInput: document.getElementById('fileInput'),
+        filesList: document.getElementById('filesList'),
+        batchActions: document.querySelector('.batch-actions'),
+        convertAllBtn: document.getElementById('convertAllBtn'),
+        clearAllBtn: document.getElementById('clearAllBtn'),
+        toastContainer: document.querySelector('.toast-container')
+    };
+
+    // Проверяем наличие всех элементов
     if (!elements.dropZone || !elements.fileInput || !elements.filesList) {
         console.error('Не найдены необходимые элементы DOM');
         return;
     }
 
+    // Инициализируем FFmpeg
+    const ffmpeg = createFFmpeg({ 
+        log: true,
+        corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
+    });
+
     // Инициализируем обработчики событий
-    initializeEventListeners();
+    initializeEventListeners(elements, ffmpeg);
 });
 
 // Функция инициализации обработчиков событий
-function initializeEventListeners() {
+function initializeEventListeners(elements, ffmpeg) {
     // Обработчик для кнопки выбора файлов
     elements.selectFile?.addEventListener('click', (e) => {
         e.preventDefault();
