@@ -2,23 +2,27 @@
 const supportedFormats = {
     'image': {
         name: 'Изображения',
-        extensions: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'tiff'],
-        mimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/bmp', 'image/tiff']
+        extensions: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'heic', 'heif'],
+        mobileFormats: ['jpg', 'webp', 'heic'], // HEIC популярен на iOS
+        mimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/bmp', 'image/heic']
     },
     'video': {
         name: 'Видео',
-        extensions: ['mp4', 'avi', 'mkv', 'mov', 'webm', 'gif'],
-        mimeTypes: ['video/mp4', 'video/webm', 'video/quicktime']
+        extensions: ['mp4', 'webm', 'mov', 'gif', '3gp', 'mkv'],
+        mobileFormats: ['mp4', 'webm', '3gp'], // 3GP для старых телефонов
+        mimeTypes: ['video/mp4', 'video/webm', 'video/quicktime', 'video/3gpp']
     },
     'audio': {
         name: 'Аудио',
-        extensions: ['mp3', 'wav', 'ogg', 'aac', 'm4a'],
-        mimeTypes: ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/aac']
+        extensions: ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'],
+        mobileFormats: ['mp3', 'm4a', 'aac'], // AAC хорошо работает на мобильных
+        mimeTypes: ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/m4a', 'audio/aac']
     },
     'document': {
         name: 'Документы',
-        extensions: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'rtf', 'odt'],
-        mimeTypes: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+        extensions: ['pdf', 'doc', 'docx', 'txt', 'rtf'],
+        mobileFormats: ['pdf', 'txt'], // PDF отлично работает на мобильных
+        mimeTypes: ['application/pdf', 'text/plain']
     },
     'archive': {
         name: 'Архивы',
@@ -124,6 +128,13 @@ function handleFile(file) {
         return;
     }
 
+    // Проверка размера файла
+    const maxSize = isMobileDevice() ? 500 * 1024 * 1024 : 2048 * 1024 * 1024;
+    if (file.size > maxSize) {
+        showErrorMessage(`Файл слишком большой. Максимальный размер: ${formatFileSize(maxSize)}`);
+        return;
+    }
+
     const fileItem = createFileItem(file, fileId, fileType);
     elements.filesList.appendChild(fileItem);
     
@@ -222,14 +233,22 @@ function getFileIcon(fileType) {
     return icons[fileType] || 'insert_drive_file';
 }
 
-// Получение опций форматов
+// Определение типа устройства
+function isMobileDevice() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
+// Обновляем функцию getFormatOptions
 function getFormatOptions(fileType, currentExt) {
-    if (!supportedFormats[fileType]) return '';
-    
-    return supportedFormats[fileType].extensions
-        .filter(ext => ext !== currentExt.toLowerCase())
+    const isMobile = isMobileDevice();
+    const formats = isMobile ? 
+        supportedFormats[fileType]?.mobileFormats : 
+        supportedFormats[fileType]?.extensions;
+
+    return formats
+        ?.filter(ext => ext !== currentExt.toLowerCase())
         .map(ext => `<option value="${ext}">${ext.toUpperCase()}</option>`)
-        .join('');
+        .join('') || '';
 }
 
 // Конвертация всех файлов
@@ -331,7 +350,10 @@ async function startConversion() {
 async function convertFile(file, targetFormat) {
     try {
         if (!ffmpeg) {
-            ffmpeg = createFFmpeg({ log: true });
+            ffmpeg = createFFmpeg({ 
+                log: true,
+                corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
+            });
             await ffmpeg.load();
         }
 
@@ -339,21 +361,33 @@ async function convertFile(file, targetFormat) {
         const outputFileName = 'output.' + targetFormat;
         
         // Загружаем файл в память FFmpeg
-        ffmpeg.FS('writeFile', inputFileName, new Uint8Array(await file.arrayBuffer()));
+        ffmpeg.FS('writeFile', inputFileName, await fetchFile(file));
 
-        // Определяем команды для конвертации в зависимости от типа файла
+        // Определяем команды для конвертации
         const fileType = getFileType(file);
         let outputOptions = [];
 
         switch (fileType) {
             case 'video':
-                outputOptions = ['-c:v', 'libx264', '-preset', 'medium', '-crf', '23'];
+                outputOptions = [
+                    '-c:v', 'libx264',
+                    '-preset', 'fast',
+                    '-crf', '23'
+                ];
+                if (isMobileDevice()) {
+                    outputOptions.push('-vf', 'scale=-2:720');
+                }
                 break;
             case 'audio':
-                outputOptions = ['-c:a', 'aac', '-b:a', '192k'];
+                outputOptions = [
+                    '-c:a', 'aac',
+                    '-b:a', isMobileDevice() ? '128k' : '192k'
+                ];
                 break;
             case 'image':
-                outputOptions = ['-quality', '90'];
+                outputOptions = [
+                    '-quality', isMobileDevice() ? '85' : '90'
+                ];
                 break;
         }
 
@@ -367,13 +401,14 @@ async function convertFile(file, targetFormat) {
         ffmpeg.FS('unlink', inputFileName);
         ffmpeg.FS('unlink', outputFileName);
 
-        // Определяем MIME-тип для выходного файла
-        const mimeType = getMimeType(targetFormat);
+        // Создаем blob с правильным mime-type
+        const blob = new Blob([data.buffer], { type: getMimeType(targetFormat) });
         
-        return new Blob([data.buffer], { type: mimeType });
+        return blob;
     } catch (error) {
         console.error('Ошибка конвертации:', error);
-        throw new Error(`Ошибка конвертации: ${error.message}`);
+        showErrorMessage(`Ошибка конвертации: ${error.message}`);
+        throw error;
     }
 }
 
@@ -402,30 +437,30 @@ function updateProgress(percent) {
 
 // Улучшенная функция скачивания
 function downloadFile(blob, originalFileName, targetFormat) {
-    // Создаем имя файла
     const originalName = originalFileName.split('.')[0];
     const fileName = `${originalName}_converted.${targetFormat}`;
     
-    // Создаем ссылку для скачивания
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
+    if (isMobileDevice()) {
+        // Для мобильных устройств
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        
+        // Очистка
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 100);
+    } else {
+        // Для десктопов
+        saveAs(blob, fileName);
+    }
     
-    // Добавляем элемент на страницу
-    document.body.appendChild(a);
-    
-    // Эмулируем клик
-    a.click();
-    
-    // Удаляем элемент и освобождаем URL
-    setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    }, 100);
-    
-    // Показываем сообщение об успехе
-    showSuccessMessage(`Файл ${fileName} успешно сохранен`);
+    showSuccessMessage(`Файл ${fileName} готов к скачиванию`);
 }
 
 // Форматирование размера файла
@@ -479,3 +514,70 @@ style.textContent = `
 `;
 
 document.head.appendChild(style);
+
+// Добавляем оптимизацию для мобильных форматов
+async function optimizeForMobile(blob, fileType, targetFormat) {
+    if (!isMobileDevice()) return blob;
+
+    const ffmpeg = createFFmpeg({ log: true });
+    await ffmpeg.load();
+
+    switch (fileType) {
+        case 'video':
+            // Оптимизация для мобильного видео
+            if (targetFormat === 'mp4') {
+                await ffmpeg.run('-i', 'input.mp4', 
+                    '-c:v', 'libx264', 
+                    '-preset', 'fast',
+                    '-crf', '28',
+                    '-movflags', '+faststart',
+                    '-vf', 'scale=-2:720', // 720p для мобильных
+                    'output.mp4'
+                );
+            }
+            break;
+        case 'image':
+            // Оптимизация для мобильных изображений
+            if (targetFormat === 'webp') {
+                await ffmpeg.run('-i', 'input.webp',
+                    '-quality', '85',
+                    '-resize', '1280x720>', // Максимальный размер
+                    'output.webp'
+                );
+            }
+            break;
+        case 'audio':
+            // Оптимизация для мобильного аудио
+            if (targetFormat === 'mp3') {
+                await ffmpeg.run('-i', 'input.mp3',
+                    '-b:a', '128k', // Битрейт для мобильных
+                    'output.mp3'
+                );
+            }
+            break;
+    }
+
+    return blob;
+}
+
+// Добавляем определение возможностей устройства
+function getDeviceCapabilities() {
+    return {
+        isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
+        isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent),
+        isAndroid: /Android/.test(navigator.userAgent),
+        maxFileSize: 500 * 1024 * 1024, // 500MB для мобильных
+        supportedFormats: {
+            image: ['jpg', 'webp', 'heic'],
+            video: ['mp4', 'webm', '3gp'],
+            audio: ['mp3', 'm4a', 'aac']
+        }
+    };
+}
+
+// Добавляем обработчик ошибок
+window.onerror = function(message, source, lineno, colno, error) {
+    console.error('Глобальная ошибка:', error);
+    showErrorMessage('Произошла ошибка. Попробуйте перезагрузить страницу');
+    return false;
+};
