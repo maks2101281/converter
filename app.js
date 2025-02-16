@@ -57,68 +57,72 @@ let ffmpeg = null;
 // Инициализация FFmpeg
 const { createFFmpeg, fetchFile } = FFmpeg;
 
-// Инициализация элементов DOM
-document.addEventListener('DOMContentLoaded', () => {
-    const elements = {
-        dropZone: document.querySelector('.upload-area'),
-        fileInput: document.getElementById('fileInput'),
-        filesList: document.getElementById('filesList'),
-        batchActions: document.querySelector('.batch-actions'),
-        convertAllBtn: document.getElementById('convertAllBtn'),
-        clearAllBtn: document.getElementById('clearAllBtn'),
-        toastContainer: document.querySelector('.toast-container')
-    };
+// Обновляем определение браузера
+const deviceInfo = {
+    isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent),
+    isAndroid: /Android/.test(navigator.userAgent),
+    isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
+    isSafari: /^((?!chrome|android).)*safari/i.test(navigator.userAgent),
+    isTelegram: /Telegram/i.test(navigator.userAgent)
+};
 
-    // Проверяем наличие всех элементов
-    if (!elements.dropZone || !elements.fileInput || !elements.filesList) {
+// Инициализация при загрузке страницы
+document.addEventListener('DOMContentLoaded', async () => {
+    // Инициализируем FFmpeg
+    try {
+        ffmpeg = createFFmpeg({ 
+            log: true,
+            corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
+        });
+        await ffmpeg.load();
+    } catch (error) {
+        console.error('Ошибка инициализации FFmpeg:', error);
+        showErrorMessage('Ошибка инициализации конвертера');
+    }
+
+    // Инициализируем обработчики событий
+    initializeEventListeners();
+});
+
+// Функция инициализации обработчиков
+function initializeEventListeners() {
+    const dropZone = document.querySelector('.upload-area');
+    const fileInput = document.getElementById('fileInput');
+    const filesList = document.getElementById('filesList');
+
+    // Проверяем наличие элементов
+    if (!dropZone || !fileInput || !filesList) {
         console.error('Не найдены необходимые элементы DOM');
         return;
     }
 
-    // Инициализируем FFmpeg
-    const ffmpeg = createFFmpeg({ 
-        log: true,
-        corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
-    });
-
-    // Инициализируем обработчики событий
-    initializeEventListeners(elements, ffmpeg);
-});
-
-// Функция инициализации обработчиков событий
-function initializeEventListeners(elements, ffmpeg) {
-    // Обработчик для кнопки выбора файлов
-    elements.selectFile?.addEventListener('click', (e) => {
-        e.preventDefault();
-        elements.fileInput?.click();
-    });
-
-    // Обработчик изменения input file
-    elements.fileInput?.addEventListener('change', (e) => {
+    // Обработчик выбора файла
+    fileInput.addEventListener('change', (e) => {
         const files = Array.from(e.target.files || []);
         files.forEach(handleFile);
     });
 
     // Drag & Drop обработчики
-    elements.dropZone?.addEventListener('dragover', (e) => {
+    dropZone.addEventListener('dragover', (e) => {
         e.preventDefault();
-        e.stopPropagation();
-        elements.dropZone.classList.add('drag-over');
+        dropZone.classList.add('drag-over');
     });
 
-    elements.dropZone?.addEventListener('dragleave', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        elements.dropZone.classList.remove('drag-over');
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('drag-over');
     });
 
-    elements.dropZone?.addEventListener('drop', (e) => {
+    dropZone.addEventListener('drop', (e) => {
         e.preventDefault();
-        e.stopPropagation();
-        elements.dropZone.classList.remove('drag-over');
+        dropZone.classList.remove('drag-over');
         
         const files = Array.from(e.dataTransfer.files);
         files.forEach(handleFile);
+    });
+
+    // Клик по зоне загрузки
+    dropZone.addEventListener('click', () => {
+        fileInput.click();
     });
 
     // Обработчики для кнопок пакетных действий
@@ -134,7 +138,7 @@ function initializeEventListeners(elements, ffmpeg) {
     elements.convertBtn.addEventListener('click', startConversion);
 }
 
-// Обработка файла
+// Обновляем функцию обработки файла
 function handleFile(file) {
     const fileId = Date.now() + Math.random();
     const fileType = getFileType(file);
@@ -144,41 +148,25 @@ function handleFile(file) {
         return;
     }
 
-    // Проверка размера файла
-    const maxSize = isMobileDevice() ? 500 * 1024 * 1024 : 2048 * 1024 * 1024;
-    if (file.size > maxSize) {
-        showErrorMessage(`Файл слишком большой. Максимальный размер: ${formatFileSize(maxSize)}`);
-        return;
-    }
-
     const fileItem = createFileItem(file, fileId, fileType);
     elements.filesList.appendChild(fileItem);
     
-    fileQueue.push({
-        id: fileId,
-        file: file,
-        type: fileType
-    });
+    // Показываем элементы управления сразу после добавления
+    const controls = fileItem.querySelector('.file-controls');
+    if (controls) {
+        controls.style.display = 'flex';
+    }
 
-    updateBatchActionsVisibility();
     showSuccessMessage(`Файл ${file.name} добавлен`);
 }
 
-// Определение типа устройства и браузера
-const deviceInfo = {
-    isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent),
-    isAndroid: /Android/.test(navigator.userAgent),
-    isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
-    isSafari: /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
-};
-
-// Обновленная функция создания элемента файла
+// Обновляем функцию создания элемента файла
 function createFileItem(file, fileId, fileType) {
     const div = document.createElement('div');
     div.className = 'file-item';
     div.dataset.fileId = fileId;
 
-    // Адаптивная HTML структура
+    // Обновленная HTML структура
     div.innerHTML = `
         <div class="file-content">
             <div class="file-info">
@@ -186,30 +174,22 @@ function createFileItem(file, fileId, fileType) {
                 <span class="file-size">${formatFileSize(file.size)}</span>
             </div>
             <div class="file-controls">
-                <div class="format-select-wrapper">
-                    <select class="format-select" aria-label="Выберите формат конвертации">
-                        <option value="" disabled selected>Выберите формат</option>
-                        ${getFormatOptions(fileType, file.name.split('.').pop())}
-                    </select>
-                </div>
+                <select class="format-select" aria-label="Выберите формат">
+                    <option value="" disabled selected>Выберите формат</option>
+                    ${getFormatOptions(fileType, file.name.split('.').pop())}
+                </select>
                 <button class="convert-btn" disabled>
                     <span class="btn-text">Конвертировать</span>
                 </button>
             </div>
         </div>
-        <div class="progress-container" style="display: none;">
-            <div class="progress-bar">
-                <div class="progress-fill"></div>
-            </div>
-            <span class="progress-text">0%</span>
-        </div>
     `;
 
-    // Добавляем обработчики событий
+    // Получаем элементы
     const formatSelect = div.querySelector('.format-select');
     const convertBtn = div.querySelector('.convert-btn');
-    
-    // Универсальные обработчики для всех устройств
+
+    // Добавляем обработчики
     formatSelect.addEventListener('change', () => {
         convertBtn.disabled = !formatSelect.value;
     });
@@ -218,19 +198,9 @@ function createFileItem(file, fileId, fileType) {
         await handleConversion(div, file, formatSelect.value);
     });
 
-    // Специальные обработчики для тач-устройств
-    if (deviceInfo.isMobile) {
-        div.querySelectorAll('button, select').forEach(element => {
-            element.addEventListener('touchstart', e => {
-                e.target.style.opacity = '0.7';
-            });
-            
-            element.addEventListener('touchend', e => {
-                e.target.style.opacity = '1';
-            });
-        });
-    }
-
+    // Показываем элементы управления
+    div.querySelector('.file-controls').style.display = 'flex';
+    
     return div;
 }
 
@@ -246,14 +216,9 @@ function getFileIcon(fileType) {
     return icons[fileType] || 'insert_drive_file';
 }
 
-// Определение типа устройства
-function isMobileDevice() {
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-}
-
 // Обновляем функцию getFormatOptions
 function getFormatOptions(fileType, currentExt) {
-    const isMobile = isMobileDevice();
+    const isMobile = deviceInfo.isMobile;
     const formats = isMobile ? 
         supportedFormats[fileType]?.mobileFormats : 
         supportedFormats[fileType]?.extensions;
@@ -387,19 +352,19 @@ async function convertFile(file, targetFormat) {
                     '-preset', 'fast',
                     '-crf', '23'
                 ];
-                if (isMobileDevice()) {
+                if (deviceInfo.isMobile) {
                     outputOptions.push('-vf', 'scale=-2:720');
                 }
                 break;
             case 'audio':
                 outputOptions = [
                     '-c:a', 'aac',
-                    '-b:a', isMobileDevice() ? '128k' : '192k'
+                    '-b:a', deviceInfo.isMobile ? '128k' : '192k'
                 ];
                 break;
             case 'image':
                 outputOptions = [
-                    '-quality', isMobileDevice() ? '85' : '90'
+                    '-quality', deviceInfo.isMobile ? '85' : '90'
                 ];
                 break;
         }
@@ -453,7 +418,7 @@ function downloadFile(blob, originalFileName, targetFormat) {
     const originalName = originalFileName.split('.')[0];
     const fileName = `${originalName}_converted.${targetFormat}`;
     
-    if (isMobileDevice()) {
+    if (deviceInfo.isMobile) {
         // Для мобильных устройств
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -530,7 +495,7 @@ document.head.appendChild(style);
 
 // Добавляем оптимизацию для мобильных форматов
 async function optimizeForMobile(blob, fileType, targetFormat) {
-    if (!isMobileDevice()) return blob;
+    if (!deviceInfo.isMobile) return blob;
 
     const ffmpeg = createFFmpeg({ log: true });
     await ffmpeg.load();
