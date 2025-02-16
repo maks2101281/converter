@@ -28,14 +28,9 @@
         <main>
             <div class="upload-container">
                 <div class="upload-area" id="dropZone">
-                    <div class="upload-content">
-                        <i class="material-icons">cloud_upload</i>
-                        <p>Перетащите файлы сюда или</p>
-                        <label for="fileInput" class="custom-file-input">
-                            Выберите файлы
-                        </label>
-                        <input type="file" id="fileInput" hidden multiple>
-                        <p class="upload-hint">Поддерживаются форматы: JPG, PNG, MP4, MP3 и другие</p>
+                    <input type="file" id="fileInput" multiple class="file-input" accept="image/*,video/*,audio/*">
+                    <div class="upload-message">
+                        <span>Перетащите файлы сюда или нажмите для выбора</span>
                     </div>
                 </div>
                 
@@ -43,14 +38,8 @@
             </div>
 
             <div class="batch-actions" id="batchActions" style="display: none;">
-                <button id="convertAllBtn" class="primary-button">
-                    <i class="material-icons">transform</i>
-                    Конвертировать все
-                </button>
-                <button id="clearAllBtn" class="secondary-button">
-                    <i class="material-icons">clear_all</i>
-                    Очистить все
-                </button>
+                <button id="convertAllBtn" class="primary-button">Конвертировать все</button>
+                <button id="clearAllBtn" class="secondary-button">Очистить все</button>
             </div>
 
             <div class="conversion-status" id="conversionStatus"></div>
@@ -110,7 +99,7 @@
     </div>
 
     <!-- Toast уведомления -->
-    <div class="toast-container" id="toastContainer"></div>
+    <div id="toastContainer" class="toast-container"></div>
 
     <!-- Добавляем необходимые скрипты -->
     <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.0/dist/ffmpeg.min.js"></script>
