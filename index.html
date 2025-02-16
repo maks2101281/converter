@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Конвертер файлов</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <!-- Добавляем красивый шрифт -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Конвертер файлов</h1>
+            <p>Бесплатная конвертация файлов прямо в браузере</p>
+            <div class="supported-formats">
+                <span class="format-badge">Изображения</span>
+                <span class="format-badge">Видео</span>
+                <span class="format-badge">Аудио</span>
+                <span class="format-badge">Документы</span>
+            </div>
+        </header>
+
+        <main>
+            <div class="upload-container">
+                <div class="upload-area" id="dropZone">
+                    <div class="upload-content">
+                        <i class="material-icons">cloud_upload</i>
+                        <p>Перетащите файлы сюда или</p>
+                        <label for="fileInput" class="custom-file-input">
+                            Выберите файлы
+                        </label>
+                        <input type="file" id="fileInput" hidden multiple>
+                        <p class="upload-hint">Поддерживаются форматы: JPG, PNG, MP4, MP3 и другие</p>
+                    </div>
+                </div>
+                
+                <div class="files-list" id="filesList"></div>
+            </div>
+
+            <div class="batch-actions" id="batchActions" style="display: none;">
+                <button id="convertAllBtn" class="primary-button">
+                    <i class="material-icons">transform</i>
+                    Конвертировать все
+                </button>
+                <button id="clearAllBtn" class="secondary-button">
+                    <i class="material-icons">clear_all</i>
+                    Очистить все
+                </button>
+            </div>
+
+            <div class="conversion-status" id="conversionStatus"></div>
+        </main>
+
+        <footer>
+            <p>© 2024 File Converter. Все права защищены.</p>
+            <div class="features">
+                <div class="feature">
+                    <i class="material-icons">security</i>
+                    <span>Безопасная конвертация</span>
+                </div>
+                <div class="feature">
+                    <i class="material-icons">speed</i>
+                    <span>Быстрая обработка</span>
+                </div>
+                <div class="feature">
+                    <i class="material-icons">devices</i>
+                    <span>Работает на всех устройствах</span>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Модальное окно настроек конвертации -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Настройки конвертации</h2>
+                <button class="close-button" id="closeModal">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-group">
+                    <label for="formatTo">Конвертировать в:</label>
+                    <select id="formatTo"></select>
+                </div>
+                <div class="settings-group">
+                    <label for="quality">Качество:</label>
+                    <input type="range" id="quality" min="1" max="100" value="92">
+                    <span id="qualityValue">92%</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="startConversion" class="primary-button">Начать конвертацию</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Прогресс загрузки -->
+    <div class="global-progress" id="globalProgress">
+        <div class="progress-inner">
+            <div class="progress-bar">
+                <div class="progress-fill"></div>
+            </div>
+            <p class="progress-text">Обработано: <span id="progressPercent">0</span>%</p>
+        </div>
+    </div>
+
+    <!-- Toast уведомления -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
