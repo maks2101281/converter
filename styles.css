@@ -159,7 +159,8 @@ header p {
 }
 
 .convert-controls {
-    display: none;
+    display: flex;
+    gap: 15px;
     margin-top: 15px;
 }
 
@@ -179,7 +180,6 @@ header p {
     background-position: right 12px center;
     background-size: 12px;
     padding-right: 36px;
-    margin-bottom: 10px;
 }
 
 .format-select option {
@@ -898,6 +898,5 @@ input[type="file"] {
     color: #333;
     border: 1px solid var(--border-color);
     border-radius: 8px;
-    font-size: 15px;
-    margin-bottom: 10px;
+    font-size: 16px;
 }
