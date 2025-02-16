@@ -528,3 +528,174 @@ input[type="file"] {
         font-size: 16px !important;
     }
 }
+
+/* Исправляем стили для мобильных селектов */
+.format-select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 10px;
+    padding-right: 30px;
+    font-size: 16px !important; /* Важно для iOS */
+    width: 100%;
+    max-width: 200px;
+    height: 44px; /* Минимальная высота для тач-интерфейсов */
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23000000%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.4-12.8z%22%2F%3E%3C%2Fsvg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 12px;
+}
+
+/* Стили для iOS Safari */
+@supports (-webkit-touch-callout: none) {
+    .format-select {
+        background-color: #fff;
+        color: #000;
+    }
+
+    /* Исправляем отображение выпадающего списка */
+    select::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    select::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+
+    select::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
+    }
+}
+
+/* Мобильные стили для селекта */
+@media (max-width: 768px) {
+    .file-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        width: 100%;
+    }
+
+    .format-select {
+        width: 100%;
+        max-width: none;
+        margin-bottom: 10px;
+    }
+
+    .convert-btn {
+        width: 100%;
+    }
+
+    /* Увеличиваем размер для лучшего таппинга */
+    .format-select option {
+        padding: 10px;
+        font-size: 16px;
+    }
+}
+
+/* Темная тема для iOS */
+@media (prefers-color-scheme: dark) {
+    .format-select {
+        background-color: #333;
+        color: #fff;
+        border-color: #444;
+    }
+}
+
+/* Универсальные мобильные стили */
+@media screen and (max-width: 768px) {
+    .file-item {
+        padding: 12px;
+        margin: 8px 0;
+    }
+
+    .file-content {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .file-controls {
+        width: 100%;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .format-select-wrapper {
+        width: 100%;
+        position: relative;
+    }
+
+    .format-select {
+        width: 100%;
+        height: 44px;
+        padding: 8px 12px;
+        font-size: 16px;
+        border-radius: 8px;
+        background-color: #fff;
+        border: 1px solid #ddd;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+    }
+
+    .convert-btn {
+        width: 100%;
+        height: 44px;
+        font-size: 16px;
+        border-radius: 8px;
+        background-color: var(--primary-color);
+        color: white;
+        border: none;
+        padding: 0 16px;
+    }
+
+    /* Стили для Android */
+    .android .format-select {
+        background-image: url("data:image/svg+xml,...");
+        padding-right: 30px;
+    }
+
+    /* Стили для iOS */
+    .ios .format-select {
+        text-align-last: center;
+    }
+
+    /* Улучшенная обратная связь при касании */
+    .convert-btn:active,
+    .format-select:active {
+        opacity: 0.7;
+        transform: scale(0.98);
+    }
+}
+
+/* Специфичные стили для iOS */
+@supports (-webkit-touch-callout: none) {
+    .format-select,
+    .convert-btn {
+        -webkit-tap-highlight-color: transparent;
+    }
+}
+
+/* Специфичные стили для Android */
+@supports (-webkit-appearance: none) and (not (-webkit-touch-callout: none)) {
+    .format-select {
+        background-position: right 8px center;
+    }
+}
+
+/* Темная тема для всех устройств */
+@media (prefers-color-scheme: dark) {
+    .format-select {
+        background-color: #333;
+        color: #fff;
+        border-color: #444;
+    }
+
+    .convert-btn {
+        background-color: var(--primary-color);
+    }
+}
