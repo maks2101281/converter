@@ -15,6 +15,8 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
 }
 
 body {
@@ -23,12 +25,14 @@ body {
     color: var(--text-color);
     line-height: 1.6;
     min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
 }
 
 .container {
+    width: 100%;
     max-width: 1200px;
     margin: 0 auto;
-    padding: 2rem;
+    padding: 1rem;
 }
 
 header {
@@ -266,7 +270,7 @@ header p {
 .progress-bar {
     background-color: var(--background-color);
     border-radius: var(--border-radius);
-    height: 20px;
+    height: 8px;
     overflow: hidden;
     margin-bottom: 1rem;
 }
@@ -344,21 +348,167 @@ footer {
     color: var(--primary-color);
 }
 
+/* Мобильные стили */
 @media (max-width: 768px) {
+    .container {
+        padding: 0.5rem;
+    }
+
+    .upload-area {
+        min-height: 150px;
+        padding: 1rem;
+        margin: 0.5rem 0;
+    }
+
+    .file-item {
+        flex-direction: column;
+        padding: 0.75rem;
+        gap: 0.5rem;
+    }
+
+    .file-info {
+        width: 100%;
+    }
+
+    .file-name {
+        font-size: 0.9rem;
+        word-break: break-all;
+    }
+
+    .file-size {
+        font-size: 0.8rem;
+    }
+
+    .file-actions {
+        width: 100%;
+        flex-direction: row;
+        justify-content: space-between;
+        gap: 0.5rem;
+    }
+
+    .format-select,
+    .convert-btn {
+        height: 44px;
+        padding: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .format-select {
+        flex: 1;
+        max-width: 120px;
+    }
+
+    .convert-btn {
+        flex: 2;
+    }
+
+    .progress-bar {
+        height: 6px;
+        margin-top: 0.5rem;
+    }
+
+    .toast {
+        width: 90%;
+        left: 5%;
+        bottom: 20px;
+        font-size: 0.9rem;
+        padding: 0.75rem;
+    }
+
+    .batch-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 0.5rem;
+    }
+
+    .batch-actions button {
+        width: 100%;
+        height: 44px;
+    }
+
+    .modal-content {
+        width: 90%;
+        margin: 10% auto;
+    }
+
+    .format-badge {
+        font-size: 0.8rem;
+    }
+}
+
+/* Планшеты */
+@media (min-width: 769px) and (max-width: 1024px) {
     .container {
         padding: 1rem;
     }
-    
-    .features {
-        flex-direction: column;
-        gap: 1rem;
+
+    .file-item {
+        padding: 1rem;
     }
-    
-    .batch-actions {
-        flex-direction: column;
+
+    .format-select,
+    .convert-btn {
+        height: 40px;
     }
+}
+
+/* Обновляем стили для отключения выделения */
+.custom-file-input,
+.convert-btn,
+.format-select,
+.upload-area {
+    -webkit-user-select: none;  /* Safari */
+    -moz-user-select: none;     /* Firefox */
+    -ms-user-select: none;      /* IE/Edge */
+    user-select: none;          /* Стандартное свойство */
     
-    .format-badge {
-        font-size: 0.8rem;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+/* Анимации и переходы */
+.file-item {
+    animation: slideIn 0.3s ease;
+}
+
+.progress-fill {
+    transition: width 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Улучшенная доступность */
+button, 
+select, 
+input[type="file"] {
+    font-size: 16px;
+}
+
+/* Фиксы для iOS */
+@supports (-webkit-touch-callout: none) {
+    .upload-area {
+        cursor: pointer;
+        -webkit-user-select: none;
+    }
+
+    input[type="file"] {
+        font-size: 16px;
+    }
+}
+
+/* Темная тема */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --background-color: #1E1E1E;
+        --text-color: #FFFFFF;
     }
 }
