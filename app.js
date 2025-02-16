@@ -275,26 +275,97 @@
                                 }
                             }
 
-                            // Улучшенная обработка загрузки файлов
-                            function handleFileUpload(files) {
-                                const file = files[0];
-                                
-                                // Проверка размера файла
-                                const maxSize = 1024 * 1024 * 100; // 100MB
-                                if (file.size > maxSize) {
-                                    alert('Файл слишком большой. Максимальный размер: 100MB');
-                                    return;
-                                }
+                            // Обработчики для загрузки файлов
+                            document.addEventListener('DOMContentLoaded', () => {
+                                const uploadArea = document.querySelector('.upload-area');
+                                const fileInput = document.querySelector('.file-input');
 
-                                // Проверка поддержки формата
+                                // Обработка клика по области загрузки
+                                uploadArea.addEventListener('click', () => {
+                                    fileInput.click();
+                                });
+
+                                // Обработка выбора файла через input
+                                fileInput.addEventListener('change', (e) => {
+                                    if (e.target.files.length > 0) {
+                                        handleFileUpload(e.target.files[0]);
+                                    }
+                                });
+
+                                // Обработка drag and drop
+                                uploadArea.addEventListener('dragover', (e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    uploadArea.classList.add('dragover');
+                                });
+
+                                uploadArea.addEventListener('dragleave', (e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    uploadArea.classList.remove('dragover');
+                                });
+
+                                uploadArea.addEventListener('drop', (e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    uploadArea.classList.remove('dragover');
+                                    
+                                    if (e.dataTransfer.files.length > 0) {
+                                        handleFileUpload(e.dataTransfer.files[0]);
+                                    }
+                                });
+                            });
+
+                            // Функция обработки загруженного файла
+                            function handleFileUpload(file) {
                                 const fileType = getFileType(file);
-                                if (fileType === 'unknown') {
-                                    alert('Формат файла не поддерживается');
-                                    return;
+                                const formats = getAvailableFormats(fileType);
+                                
+                                // Получаем имя файла без расширения
+                                const fileName = file.name.split('.')[0];
+                                
+                                // Показываем информацию о файле
+                                const fileItem = document.createElement('div');
+                                fileItem.className = 'file-item';
+                                fileItem.innerHTML = `
+                                    <div class="file-info">
+                                        <span class="file-name">${file.name}</span>
+                                        <span class="file-size">${formatFileSize(file.size)}</span>
+                                    </div>
+                                `;
+
+                                // Создаем контейнер для элементов конвертации
+                                const convertControls = document.createElement('div');
+                                convertControls.className = 'convert-controls';
+                                convertControls.style.display = 'block'; // Показываем элементы
+                                convertControls.innerHTML = `
+                                    <select class="format-select">
+                                        ${formats.map(format => `<option value="${format}">${format.toUpperCase()}</option>`).join('')}
+                                    </select>
+                                    <input type="text" class="filename-field" value="${fileName}" placeholder="Введите имя файла">
+                                    <button class="convert-btn" onclick="startConversion('${file.name}')">Конвертировать</button>
+                                `;
+
+                                fileItem.appendChild(convertControls);
+
+                                // Очищаем предыдущий файл если есть
+                                const container = document.querySelector('.container');
+                                const existingFile = container.querySelector('.file-item');
+                                if (existingFile) {
+                                    existingFile.remove();
                                 }
 
-                                const formats = getAvailableFormats(fileType);
-                                showConversionInterface(file, formats);
+                                // Добавляем новый файл
+                                container.appendChild(fileItem);
+
+                                // Добавляем обработчик изменения формата
+                                const formatSelect = fileItem.querySelector('.format-select');
+                                const filenameField = fileItem.querySelector('.filename-field');
+                                
+                                formatSelect.addEventListener('change', () => {
+                                    const currentName = filenameField.value.split('.')[0];
+                                    filenameField.value = `${currentName}`;
+                                });
                             }
 
                             // Определение типа файла
@@ -605,3 +676,51 @@
                                 showToast('Произошла ошибка. Попробуйте перезагрузить страницу', 'error');
                                 return false;
                             };
+
+                            // Функция начала конвертации
+                            async function startConversion(originalFileName) {
+                                const fileItem = document.querySelector('.file-item');
+                                const formatSelect = fileItem.querySelector('.format-select');
+                                const filenameField = fileItem.querySelector('.filename-field');
+                                const targetFormat = formatSelect.value;
+                                
+                                // Получаем оригинальный файл
+                                const fileInput = document.querySelector('.file-input');
+                                const file = fileInput.files[0];
+
+                                if (!file) {
+                                    alert('Пожалуйста, выберите файл');
+                                    return;
+                                }
+
+                                // Получаем имя файла
+                                let outputFileName = filenameField.value;
+                                if (!outputFileName) {
+                                    // Если имя не задано, используем оригинальное имя с новым расширением
+                                    const baseName = originalFileName.split('.')[0];
+                                    outputFileName = `${baseName}.${targetFormat}`;
+                                } else if (!outputFileName.endsWith(`.${targetFormat}`)) {
+                                    outputFileName += `.${targetFormat}`;
+                                }
+
+                                try {
+                                    // Показываем прогресс
+                                    const convertBtn = fileItem.querySelector('.convert-btn');
+                                    convertBtn.disabled = true;
+                                    convertBtn.textContent = 'Конвертация...';
+
+                                    // Конвертируем файл
+                                    await convertFile(file, targetFormat, outputFileName);
+
+                                    convertBtn.textContent = 'Готово!';
+                                    setTimeout(() => {
+                                        convertBtn.disabled = false;
+                                        convertBtn.textContent = 'Конвертировать';
+                                    }, 2000);
+                                } catch (error) {
+                                    console.error('Ошибка конвертации:', error);
+                                    convertBtn.disabled = false;
+                                    convertBtn.textContent = 'Ошибка';
+                                    alert('Произошла ошибка при конвертации. Попробуйте еще раз.');
+                                }
+                            }
